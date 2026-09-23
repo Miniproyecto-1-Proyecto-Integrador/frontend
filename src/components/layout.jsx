@@ -20,7 +20,7 @@ export default function Layout() {
       <aside className="fixed left-0 top-0 h-full w-72 bg-white border-r border-[#e5e7f8] shadow-[0_1px_8px_rgba(0,0,0,0.03)] z-50 flex flex-col gap-6 py-6">
         <div className="px-6 flex items-center gap-3">
           <div className={CARD_HEADER_ICON}>
-            <span className="material-symbols-outlined text-[24px]">auto_schedule</span>
+            <span className="material-symbols-outlined text-[24px]" aria-hidden="true">auto_schedule</span>
           </div>
           <span className={`${FONT_HEADLINE} text-xl font-bold tracking-tight`}>Planify</span>
         </div>
@@ -30,11 +30,12 @@ export default function Layout() {
             item.disabled ? (
               <span
                 key={item.label}
-                className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-[#7a7580]/60 cursor-not-allowed select-none"
+                className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-[#49454f] cursor-not-allowed select-none"
                 title="Todavía no está disponible"
+                aria-disabled="true"
               >
                 <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                  <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
                   {item.label}
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-wider">Pronto</span>
@@ -49,7 +50,7 @@ export default function Layout() {
                   }`
                 }
               >
-                <span className="material-symbols-outlined text-[20px]">{item.icon}</span>
+                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
                 {item.label}
               </NavLink>
             )
@@ -62,7 +63,7 @@ export default function Layout() {
             futuro, así que no hay nombre ni sesión que mostrar todavía. */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#eaddff] text-[#63518b] flex items-center justify-center">
-            <span className="material-symbols-outlined text-[20px]">person</span>
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">person</span>
           </div>
           <span className="text-sm font-semibold text-[#181b27] hidden sm:inline">Organizador/a</span>
         </div>

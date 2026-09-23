@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createEvent, createSubtask } from './services/events';
 import {
@@ -49,6 +49,14 @@ export default function CrearEvento() {
   const [eventoId, setEventoId] = useState(null);
   const [formStatus, setFormStatus] = useState('idle'); // idle | submitting | success | error
   const [formError, setFormError] = useState(null);
+
+  // Foco en el <h1> al montar: en una SPA no hay recarga de página, así
+  // que sin esto un usuario de lector de pantalla no se entera de que
+  // "navegó" a esta vista (mismo patrón que en el detalle del evento).
+  const headingRef = useRef(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (formStatus !== 'success' || !eventoId) return;
@@ -161,7 +169,12 @@ export default function CrearEvento() {
   return (
     <div className="flex flex-col gap-2 pb-16">
       <div className="mb-6">
-        <h1 className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight`}>
+        {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
+        >
           Crear nuevo evento
         </h1>
         <p className="text-sm sm:text-base text-[#49454f] mt-1 max-w-2xl">
@@ -188,7 +201,7 @@ export default function CrearEvento() {
               <legend className="sr-only">Datos del evento</legend>
               <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
                 <div className={CARD_HEADER_ICON}>
-                  <span className="material-symbols-outlined text-[22px]">celebration</span>
+                  <span className="material-symbols-outlined text-[22px]" aria-hidden="true">celebration</span>
                 </div>
                 <div>
                   <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Datos del evento</h2>
@@ -202,7 +215,7 @@ export default function CrearEvento() {
                     Nombre del evento <span className="text-[#ba1a1a]">*</span>
                   </label>
                   <div className={INPUT_WRAP}>
-                    <span className={INPUT_ICON}>edit_calendar</span>
+                    <span className={INPUT_ICON} aria-hidden="true">edit_calendar</span>
                     <input
                       id="nombre"
                       type="text"
@@ -253,7 +266,7 @@ export default function CrearEvento() {
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="fecha" className={LABEL}>Fecha del evento <span className="text-[#ba1a1a]">*</span></label>
                     <div className={INPUT_WRAP}>
-                      <span className={INPUT_ICON}>calendar_month</span>
+                      <span className={INPUT_ICON} aria-hidden="true">calendar_month</span>
                       <input
                         id="fecha"
                         type="date"
@@ -268,7 +281,7 @@ export default function CrearEvento() {
                   <div className="flex flex-col gap-1.5">
                     <label htmlFor="hora" className={LABEL}>Hora del evento <span className="text-[#ba1a1a]">*</span></label>
                     <div className={INPUT_WRAP}>
-                      <span className={INPUT_ICON}>schedule</span>
+                      <span className={INPUT_ICON} aria-hidden="true">schedule</span>
                       <input
                         id="hora"
                         type="time"
@@ -288,7 +301,7 @@ export default function CrearEvento() {
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="cliente_contacto" className={LABEL}>Contacto del cliente <span className="text-[#ba1a1a]">*</span></label>
                   <div className={INPUT_WRAP}>
-                    <span className={INPUT_ICON}>person</span>
+                    <span className={INPUT_ICON} aria-hidden="true">person</span>
                     <input
                       id="cliente_contacto"
                       type="text"
@@ -305,7 +318,7 @@ export default function CrearEvento() {
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="lugar" className={LABEL}>Lugar <span className="text-[#ba1a1a]">*</span></label>
                   <div className={INPUT_WRAP}>
-                    <span className={INPUT_ICON}>pin_drop</span>
+                    <span className={INPUT_ICON} aria-hidden="true">pin_drop</span>
                     <input
                       id="lugar"
                       type="text"
@@ -326,7 +339,7 @@ export default function CrearEvento() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#ebedfe]">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#d2e4ff] flex items-center justify-center text-[#3c608b] flex-shrink-0">
-                    <span className="material-symbols-outlined text-[22px]">checklist_rtl</span>
+                    <span className="material-symbols-outlined text-[22px]" aria-hidden="true">checklist_rtl</span>
                   </div>
                   <div>
                     <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Plan logístico inicial</h2>
@@ -348,7 +361,7 @@ export default function CrearEvento() {
                 {gestiones.map((gestion, index) => (
                   <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3" key={gestion.id}>
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
-                      <span className="material-symbols-outlined text-[18px] text-[#63518b]">task_alt</span>
+                      <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
                       Gestión {index + 1}
                     </div>
 
@@ -416,7 +429,7 @@ export default function CrearEvento() {
               </div>
 
               <button type="button" className={`${BOTON_SECUNDARIO} self-start flex items-center gap-2`} onClick={agregarGestion} disabled={enviando}>
-                <span className="material-symbols-outlined text-[18px]">add_circle</span>
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add_circle</span>
                 Agregar gestión
               </button>
             </fieldset>
@@ -427,7 +440,7 @@ export default function CrearEvento() {
             <div className={CARD}>
               <div className="flex items-center gap-2.5 pb-3 border-b border-[#ebedfe]">
                 <div className="w-8 h-8 rounded-lg bg-[#f2f3ff] flex items-center justify-center text-[#63518b]">
-                  <span className="material-symbols-outlined text-[20px]">analytics</span>
+                  <span className="material-symbols-outlined text-[20px]" aria-hidden="true">analytics</span>
                 </div>
                 <h3 className={`${FONT_HEADLINE} text-base font-bold text-[#181b27]`}>Resumen del plan</h3>
               </div>
@@ -445,7 +458,7 @@ export default function CrearEvento() {
 
             <div className={CARD}>
               <button type="submit" className={BOTON_PRINCIPAL} disabled={enviando}>
-                <span className="material-symbols-outlined text-[18px]">check</span>
+                <span className="material-symbols-outlined text-[18px]" aria-hidden="true">check</span>
                 {enviando
                   ? 'Guardando…'
                   : eventoYaCreado

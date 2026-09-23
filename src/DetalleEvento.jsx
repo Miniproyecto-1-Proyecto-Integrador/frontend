@@ -7,6 +7,7 @@ import {
   FONT_HEADLINE, CARD, CARD_HEADER_ICON, INPUT_WRAP, INPUT_ICON, INPUT, LABEL, ERROR,
   BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
 } from './components/ui';
+import { useFocusTrap } from './helpers/UseFocusTrap';
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
 const EXITO = 'text-[#1e5a34] text-xs font-semibold';
@@ -212,6 +213,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
   const editarBtnRef = useRef(null);
   const eliminarBtnRef = useRef(null);
   const confirmarHeadingRef = useRef(null);
+  const confirmarDialogRef = useRef(null);
 
   useEffect(() => {
     if (modo === 'editar') focusField('ev-nombre');
@@ -225,6 +227,11 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
     setConfirmando(false);
     eliminarBtnRef.current?.focus();
   });
+
+  // aria-modal="true" es una promesa de que el foco no puede salir del
+  // diálogo mientras está abierto; esto es lo que hace que esa promesa
+  // se cumpla de verdad con Tab / Shift+Tab.
+  useFocusTrap(confirmando, confirmarDialogRef);
 
   function limpiarErrorCampo(campo) {
     setFieldErrors((prev) => {
@@ -352,6 +359,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
 
         {confirmando && (
           <div
+            ref={confirmarDialogRef}
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="confirmar-eliminar-evento-heading"
@@ -534,6 +542,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
   const editarBtnRef = useRef(null);
   const eliminarBtnRef = useRef(null);
   const confirmarHeadingRef = useRef(null);
+  const confirmarDialogRef = useRef(null);
 
   useEffect(() => {
     if (modo === 'editar') focusField(`sub-titulo-${subtarea.id}`);
@@ -547,6 +556,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
     setConfirmando(false);
     eliminarBtnRef.current?.focus();
   });
+
+  useFocusTrap(confirmando, confirmarDialogRef);
 
   function cancelar() {
     setTitulo(subtarea.titulo);
@@ -641,6 +652,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
 
         {confirmando && (
           <div
+            ref={confirmarDialogRef}
             role="alertdialog"
             aria-modal="true"
             aria-labelledby={`confirmar-eliminar-sub-${subtarea.id}`}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { listEvents } from './services/events';
 import {
@@ -18,6 +18,11 @@ export default function MisEventos() {
   const [status, setStatus] = useState('loading'); // loading | ok | empty | error
   const [eventos, setEventos] = useState([]);
 
+  // Foco en el <h1> al terminar de cargar: en una SPA no hay recarga de
+  // página, así que sin esto un usuario de lector de pantalla no se entera
+  // de que "navegó" a esta vista (mismo patrón que en el detalle del evento).
+  const headingRef = useRef(null);
+
   const cargar = useCallback(async () => {
     setStatus('loading');
     try {
@@ -30,6 +35,10 @@ export default function MisEventos() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    if (status === 'ok' || status === 'empty') headingRef.current?.focus();
+  }, [status]);
 
   if (status === 'loading') {
     return <p className="px-4 py-3" role="status">Cargando eventos…</p>;
@@ -48,7 +57,12 @@ export default function MisEventos() {
 
   return (
     <div className="flex flex-col gap-6 pb-16">
-      <h1 className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight`}>
+      {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
+      <h1
+        ref={headingRef}
+        tabIndex={-1}
+        className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
+      >
         Mis eventos
       </h1>
 
