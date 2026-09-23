@@ -4,6 +4,7 @@ import { checkBackendHealth } from './services/api.js';
 import Layout from './components/layout.jsx';
 import CrearEvento from './CrearEvento';
 import DetalleEvento from './DetalleEvento';
+import MisEventos from './MisEventos';
 
 export default function App() {
   // 'loading' | 'ok' | 'error'
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/crear" replace />} />
         <Route path="/crear" element={<CrearEvento />} />
         <Route path="/evento/:id" element={<DetalleEvento />} />
+        <Route path="/evento" element={<MisEventos />} />
       </Route>
     </Routes>
   );

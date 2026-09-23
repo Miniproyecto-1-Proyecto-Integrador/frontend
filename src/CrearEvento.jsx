@@ -15,7 +15,10 @@ function focusField(id) {
 }
 
 function nuevaGestionVacia() {
-  return { titulo: '', fecha_objetivo: '', horas_estimadas: '', status: 'pending', error: null, errorField: null };
+  return {
+    id: crypto.randomUUID(),
+    titulo: '', fecha_objetivo: '', horas_estimadas: '', status: 'pending', error: null, errorField: null,
+  };
 }
 
 /**
@@ -57,14 +60,14 @@ export default function CrearEvento() {
     setGestiones((prev) => [...prev, nuevaGestionVacia()]);
   }
 
-  function eliminarGestion(index) {
-    setGestiones((prev) => prev.filter((_, i) => i !== index));
+  function eliminarGestion(id) {
+    setGestiones((prev) => prev.filter((g) => g.id !== id));
   }
 
-  function actualizarGestion(index, campo, valor) {
+  function actualizarGestion(id, campo, valor) {
     setGestiones((prev) =>
-      prev.map((g, i) =>
-        i === index
+      prev.map((g) =>
+        g.id === id
           ? { ...g, [campo]: valor, error: null, errorField: null, status: g.status === 'saved' ? g.status : 'pending' }
           : g
       )
@@ -105,9 +108,9 @@ export default function CrearEvento() {
     if (huboError) {
       setFormStatus('error');
       setFormError('El evento se creó, pero algunas gestiones no se pudieron guardar. Revisa los mensajes abajo e inténtalo de nuevo.');
-      const primerErrorIndex = actualizadas.findIndex((g) => g.status === 'error');
-      if (primerErrorIndex !== -1 && actualizadas[primerErrorIndex].errorField) {
-        focusField(`gestion-${actualizadas[primerErrorIndex].errorField}-${primerErrorIndex}`);
+      const primeraConError = actualizadas.find((g) => g.status === 'error');
+      if (primeraConError?.errorField) {
+        focusField(`gestion-${primeraConError.errorField}-${primeraConError.id}`);
       }
     } else {
       setFormStatus('success');
@@ -157,18 +160,12 @@ export default function CrearEvento() {
 
   return (
     <div className="flex flex-col gap-2 pb-16">
-      <nav className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2">
-        <span>Mis Eventos</span>
-        <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-        <span className="text-[#63518b] font-bold">Nuevo Evento</span>
-      </nav>
-
       <div className="mb-6">
         <h1 className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight`}>
-          Crear Nuevo Evento
+          Crear nuevo evento
         </h1>
         <p className="text-sm sm:text-base text-[#49454f] mt-1 max-w-2xl">
-          Registra los datos del evento y su plan logístico inicial.
+          Registra los datos del evento y opcionalmente su plan logístico inicial.
         </p>
       </div>
 
@@ -349,54 +346,54 @@ export default function CrearEvento() {
 
               <div className="flex flex-col gap-3">
                 {gestiones.map((gestion, index) => (
-                  <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3" key={index}>
+                  <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3" key={gestion.id}>
                     <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
                       <span className="material-symbols-outlined text-[18px] text-[#63518b]">task_alt</span>
                       Gestión {index + 1}
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label htmlFor={`gestion-titulo-${index}`} className={LABEL}>Título</label>
+                      <label htmlFor={`gestion-titulo-${gestion.id}`} className={LABEL}>Título</label>
                       <input
-                        id={`gestion-titulo-${index}`}
+                        id={`gestion-titulo-${gestion.id}`}
                         type="text"
                         className={`${INPUT} pl-4`}
                         placeholder="Ej: Reservar salón"
                         value={gestion.titulo}
                         disabled={gestion.status === 'saved' || gestion.status === 'saving'}
-                        onChange={(e) => actualizarGestion(index, 'titulo', e.target.value)}
+                        onChange={(e) => actualizarGestion(gestion.id, 'titulo', e.target.value)}
                         aria-invalid={gestion.errorField === 'titulo'}
-                        aria-describedby={gestion.error ? `gestion-error-${index}` : undefined}
+                        aria-describedby={gestion.error ? `gestion-error-${gestion.id}` : undefined}
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label htmlFor={`gestion-fecha-${index}`} className={LABEL}>Fecha objetivo</label>
+                        <label htmlFor={`gestion-fecha-${gestion.id}`} className={LABEL}>Fecha objetivo</label>
                         <input
-                          id={`gestion-fecha-${index}`}
+                          id={`gestion-fecha-${gestion.id}`}
                           type="date"
                           className={`${INPUT} pl-4`}
                           value={gestion.fecha_objetivo}
                           disabled={gestion.status === 'saved' || gestion.status === 'saving'}
-                          onChange={(e) => actualizarGestion(index, 'fecha_objetivo', e.target.value)}
+                          onChange={(e) => actualizarGestion(gestion.id, 'fecha_objetivo', e.target.value)}
                           aria-invalid={gestion.errorField === 'fecha'}
-                          aria-describedby={gestion.error ? `gestion-error-${index}` : undefined}
+                          aria-describedby={gestion.error ? `gestion-error-${gestion.id}` : undefined}
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label htmlFor={`gestion-horas-${index}`} className={LABEL}>Horas estimadas</label>
+                        <label htmlFor={`gestion-horas-${gestion.id}`} className={LABEL}>Horas estimadas</label>
                         <input
-                          id={`gestion-horas-${index}`}
+                          id={`gestion-horas-${gestion.id}`}
                           type="number"
                           min="0.5"
                           step="0.5"
                           className={`${INPUT} pl-4`}
                           value={gestion.horas_estimadas}
                           disabled={gestion.status === 'saved' || gestion.status === 'saving'}
-                          onChange={(e) => actualizarGestion(index, 'horas_estimadas', e.target.value)}
+                          onChange={(e) => actualizarGestion(gestion.id, 'horas_estimadas', e.target.value)}
                           aria-invalid={gestion.errorField === 'horas'}
-                          aria-describedby={gestion.error ? `gestion-error-${index}` : undefined}
+                          aria-describedby={gestion.error ? `gestion-error-${gestion.id}` : undefined}
                         />
                       </div>
                     </div>
@@ -405,12 +402,12 @@ export default function CrearEvento() {
                       {gestion.status === 'saving' && <span>Guardando…</span>}
                       {gestion.status === 'saved' && <span className="text-[#1e5a34] font-semibold">Gestión guardada</span>}
                       {gestion.error && (
-                        <p id={`gestion-error-${index}`} className={ERROR} role="alert">{gestion.error}</p>
+                        <p id={`gestion-error-${gestion.id}`} className={ERROR} role="alert">{gestion.error}</p>
                       )}
                     </div>
 
                     {gestion.status !== 'saved' && (
-                      <button type="button" className={`${BOTON_SECUNDARIO} self-start`} onClick={() => eliminarGestion(index)} disabled={enviando}>
+                      <button type="button" className={`${BOTON_SECUNDARIO} self-start`} onClick={() => eliminarGestion(gestion.id)} disabled={enviando}>
                         Quitar
                       </button>
                     )}

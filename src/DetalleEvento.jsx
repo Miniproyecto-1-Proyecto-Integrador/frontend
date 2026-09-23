@@ -9,6 +9,7 @@ import {
 } from './components/ui';
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
+const EXITO = 'text-[#1e5a34] text-xs font-semibold';
 
 function focusField(id) {
   document.getElementById(id)?.focus();
@@ -48,6 +49,10 @@ export default function DetalleEvento() {
   const [evento, setEvento] = useState(null);
   const [subtareas, setSubtareas] = useState([]);
   const [eventoEliminado, setEventoEliminado] = useState(false);
+  // Mensaje de éxito al eliminar una subtarea: como el item desaparece de
+  // la lista, no hay dónde mostrarlo "en su propia tarjeta" (ya no existe),
+  // así que vive a nivel de esta vista, junto a la lista de gestiones.
+  const [ultimaEliminada, setUltimaEliminada] = useState(null);
 
   // Foco en el <h1> al terminar de cargar: en una SPA no hay recarga de
   // página, así que sin esto un usuario de lector de pantalla no se entera
@@ -105,7 +110,7 @@ export default function DetalleEvento() {
   return (
     <div className="flex flex-col gap-2 pb-16">
       <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2">
-        <Link to="/hoy" className="hover:underline">Mis Eventos</Link>
+        <Link to="/evento" className="hover:underline">Mis Eventos</Link>
         <span className="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
         <span className="text-[#63518b] font-bold" aria-current="page">{evento.nombre}</span>
       </nav>
@@ -134,7 +139,15 @@ export default function DetalleEvento() {
             <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Plan logístico</h2>
           </div>
 
-          {subtareas.length === 0 && <p className="text-[#49454f] italic">Evento sin subtareas.</p>}
+          {subtareas.length === 0 && (
+            <p className="text-[#49454f] italic">Este evento no tiene gestiones logísticas todavía.</p>
+          )}
+
+          <div aria-live="polite">
+            {ultimaEliminada && (
+              <p className={EXITO} role="status">"{ultimaEliminada}" eliminada del plan.</p>
+            )}
+          </div>
 
           <div className="flex flex-col gap-3" aria-label={`${subtareas.length} gestiones logísticas`}>
             {subtareas.map((s) => (
@@ -145,16 +158,20 @@ export default function DetalleEvento() {
                 onGuardada={(actualizada) =>
                   setSubtareas((prev) => prev.map((x) => (x.id === actualizada.id ? actualizada : x)))
                 }
-                onEliminada={(idEliminado) =>
-                  setSubtareas((prev) => prev.filter((x) => x.id !== idEliminado))
-                }
+                onEliminada={(idEliminado, tituloEliminado) => {
+                  setSubtareas((prev) => prev.filter((x) => x.id !== idEliminado));
+                  setUltimaEliminada(tituloEliminado);
+                }}
               />
             ))}
           </div>
 
           <NuevaGestionForm
             eventoId={id}
-            onCreada={(nueva) => setSubtareas((prev) => [...prev, nueva])}
+            onCreada={(nueva) => {
+              setSubtareas((prev) => [...prev, nueva]);
+              setUltimaEliminada(null);
+            }}
           />
         </div>
       </div>
@@ -177,6 +194,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
   const [estado, setEstado] = useState('idle');
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [mensajeExito, setMensajeExito] = useState(null);
 
   const { fecha: fechaInicial, hora: horaInicial } = splitFechaHora(evento.fecha_hora);
   const tipoEsSugerido = TIPOS_SUGERIDOS.includes(evento.tipo);
@@ -253,6 +271,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
       onGuardado(actualizado);
       setEstado('idle');
       setModo('ver');
+      setMensajeExito('Cambios guardados.');
       editarBtnRef.current?.focus();
     } catch (err) {
       setEstado('error');
@@ -304,6 +323,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
         </dl>
 
         <div aria-live="polite">
+          {mensajeExito && !error && <p className={EXITO} role="status">{mensajeExito}</p>}
           {error && <p className={ERROR} role="alert">{error}</p>}
         </div>
 
@@ -312,7 +332,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
             ref={editarBtnRef}
             type="button"
             className={BOTON_SECUNDARIO}
-            onClick={() => setModo('editar')}
+            onClick={() => { setModo('editar'); setMensajeExito(null); }}
             aria-label={`Editar evento: ${evento.nombre}`}
           >
             Editar
@@ -322,7 +342,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
               ref={eliminarBtnRef}
               type="button"
               className={BOTON_PELIGRO}
-              onClick={() => setConfirmando(true)}
+              onClick={() => { setConfirmando(true); setMensajeExito(null); }}
               aria-label={`Eliminar evento: ${evento.nombre}`}
             >
               Eliminar evento
@@ -505,6 +525,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
   const [estado, setEstado] = useState('idle');
   const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
+  const [mensajeExito, setMensajeExito] = useState(null);
 
   const [titulo, setTitulo] = useState(subtarea.titulo);
   const [fechaObjetivo, setFechaObjetivo] = useState(subtarea.fecha_objetivo);
@@ -552,6 +573,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
       onGuardada(actualizada);
       setEstado('idle');
       setModo('ver');
+      setMensajeExito('Cambios guardados.');
       editarBtnRef.current?.focus();
     } catch (err) {
       setEstado('error');
@@ -571,7 +593,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
     setError(null);
     try {
       await deleteSubtask(eventoId, subtarea.id);
-      onEliminada(subtarea.id);
+      onEliminada(subtarea.id, subtarea.titulo);
     } catch (err) {
       setEstado('error');
       setError(mensajeError(err, 'No pudimos eliminar la gestión.'));
@@ -590,6 +612,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
         <p className="text-xs text-[#7a7580]">Fecha objetivo: {subtarea.fecha_objetivo} — {subtarea.horas_estimadas} h estimadas</p>
 
         <div aria-live="polite">
+          {mensajeExito && !error && <p className={EXITO} role="status">{mensajeExito}</p>}
           {error && <p className={ERROR} role="alert">{error}</p>}
         </div>
 
@@ -598,7 +621,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
             ref={editarBtnRef}
             type="button"
             className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
-            onClick={() => setModo('editar')}
+            onClick={() => { setModo('editar'); setMensajeExito(null); }}
             aria-label={`Editar gestión: ${subtarea.titulo}`}
           >
             Editar
@@ -608,7 +631,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
               ref={eliminarBtnRef}
               type="button"
               className={`${BOTON_PELIGRO} py-1.5 px-4 text-xs`}
-              onClick={() => setConfirmando(true)}
+              onClick={() => { setConfirmando(true); setMensajeExito(null); }}
               aria-label={`Eliminar gestión: ${subtarea.titulo}`}
             >
               Eliminar
@@ -877,7 +900,7 @@ function NuevaGestionForm({ eventoId, onCreada }) {
       <div aria-live="polite">
         {error && <p id={idError} className={ERROR} role="alert">{error}</p>}
         {!error && ultimaAgregada && (
-          <p className="text-[#1e5a34] text-xs font-semibold" role="status">
+          <p className={EXITO} role="status">
             "{ultimaAgregada}" agregada al plan.
           </p>
         )}

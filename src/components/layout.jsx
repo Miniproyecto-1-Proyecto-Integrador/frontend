@@ -1,13 +1,16 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
 
-// "Hoy", "Mis Eventos" y "Progreso" todavía no existen como pantallas —
+// "Hoy" y "Progreso y Métricas" todavía no existen como pantallas —
 // se muestran deshabilitadas para no simular navegación a algo que no
 // está construido (US-04/US-10, sprints futuros).
+// "Mis Eventos" sí está activa: apunta a /evento, un listado plano
+// (GET /api/events/) que no implementa nada de US-04 — solo permite
+// navegar a los eventos que ya existen.
 const NAV_ITEMS = [
   { to: '/crear', label: 'Crear Evento', icon: 'add_circle' },
+  { to: '/evento', label: 'Mis Eventos', icon: 'event_available' },
   { label: 'Hoy', icon: 'today', disabled: true },
-  { label: 'Mis Eventos', icon: 'event_available', disabled: true },
   { label: 'Progreso y Métricas', icon: 'query_stats', disabled: true },
 ];
 
