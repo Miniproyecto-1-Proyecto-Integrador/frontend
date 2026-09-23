@@ -1,7 +1,7 @@
 // Configuración centralizada de la API.
 // La URL nunca se hardcodea en los componentes: siempre se lee de la
 // variable de entorno de Vite VITE_API_URL (ver .env.example).
-const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
 /**
  * Llama a GET /api/health/ en el backend Django y devuelve el JSON
