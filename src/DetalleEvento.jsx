@@ -116,14 +116,22 @@ export default function DetalleEvento() {
         <span className="text-[#63518b] font-bold" aria-current="page">{evento.nombre}</span>
       </nav>
 
-      {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
-      <h1
-        ref={headingRef}
-        tabIndex={-1}
-        className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight mb-6 focus:outline-none`}
-      >
-        {evento.nombre}
-      </h1>
+      {/* Cabecera con un leve acento decorativo detrás del título — el único
+          "momento" visual de la página; el resto se mantiene tranquilo. */}
+      <div className="relative overflow-hidden rounded-2xl mb-4">
+        <div
+          className="pointer-events-none absolute -top-14 -left-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-50 blur-2xl"
+          aria-hidden="true"
+        />
+        {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
+        <h1
+          ref={headingRef}
+          tabIndex={-1}
+          className={`${FONT_HEADLINE} relative text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
+        >
+          {evento.nombre}
+        </h1>
+      </div>
 
       <div className="flex flex-col gap-8">
         <EventoCard
@@ -134,14 +142,24 @@ export default function DetalleEvento() {
 
         <div className={CARD}>
           <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
-            <div className="w-10 h-10 rounded-xl bg-[#d2e4ff] flex items-center justify-center text-[#3c608b]">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d2e4ff] to-[#e8f0ff] flex items-center justify-center text-[#3c608b] shadow-sm">
               <span className="material-symbols-outlined text-[22px]" aria-hidden="true">checklist_rtl</span>
             </div>
-            <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Plan logístico</h2>
+            <div>
+              <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Plan logístico</h2>
+              {subtareas.length > 0 && (
+                <p className="text-xs text-[#7a7580]">
+                  {subtareas.length} {subtareas.length === 1 ? 'gestión' : 'gestiones'} en el plan
+                </p>
+              )}
+            </div>
           </div>
 
           {subtareas.length === 0 && (
-            <p className="text-[#49454f] italic">Este evento no tiene gestiones logísticas todavía.</p>
+            <div className="flex flex-col items-center text-center gap-2 py-6">
+              <span className="material-symbols-outlined text-[28px] text-[#7a7580]" aria-hidden="true">playlist_add</span>
+              <p className="text-[#49454f] italic">Este evento no tiene gestiones logísticas todavía.</p>
+            </div>
           )}
 
           <div aria-live="polite">
@@ -316,17 +334,29 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
     return (
       <div className={CARD}>
         <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
-          <div className={CARD_HEADER_ICON}>
+          <div className={`${CARD_HEADER_ICON} shadow-sm`}>
             <span className="material-symbols-outlined text-[22px]" aria-hidden="true">celebration</span>
           </div>
           <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Datos del evento</h2>
         </div>
 
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div><dt className="inline text-[#7a7580]">Tipo:</dt> <dd className="inline font-semibold">{evento.tipo}</dd></div>
-          <div><dt className="inline text-[#7a7580]">Fecha:</dt> <dd className="inline font-semibold">{fechaInicial} {horaInicial}</dd></div>
-          <div><dt className="inline text-[#7a7580]">Contacto:</dt> <dd className="inline font-semibold">{evento.cliente_contacto}</dd></div>
-          <div><dt className="inline text-[#7a7580]">Lugar:</dt> <dd className="inline font-semibold">{evento.lugar}</dd></div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">sell</span>
+            <p><dt className="inline text-[#7a7580]">Tipo:</dt> <dd className="inline font-semibold">{evento.tipo}</dd></p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">calendar_month</span>
+            <p><dt className="inline text-[#7a7580]">Fecha:</dt> <dd className="inline font-semibold">{fechaInicial} {horaInicial}</dd></p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">person</span>
+            <p><dt className="inline text-[#7a7580]">Contacto:</dt> <dd className="inline font-semibold">{evento.cliente_contacto}</dd></p>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">pin_drop</span>
+            <p><dt className="inline text-[#7a7580]">Lugar:</dt> <dd className="inline font-semibold">{evento.lugar}</dd></p>
+          </div>
         </dl>
 
         <div aria-live="polite">
@@ -401,7 +431,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
   return (
     <form onSubmit={guardar} className={CARD} noValidate aria-label="Editar evento">
       <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
-        <div className={CARD_HEADER_ICON}>
+        <div className={`${CARD_HEADER_ICON} shadow-sm`}>
           <span className="material-symbols-outlined text-[22px]" aria-hidden="true">edit</span>
         </div>
         <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Editar evento</h2>
@@ -432,7 +462,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
           {TIPOS_SUGERIDOS.map((op) => (
             <button
               key={op} type="button" aria-pressed={tipo === op}
-              className={`${PILL_BASE} ${tipo === op ? PILL_ACTIVE : PILL_INACTIVE}`}
+              className={`${PILL_BASE} ${tipo === op ? PILL_ACTIVE : PILL_INACTIVE} transition-colors`}
               onClick={() => { setTipo(op); limpiarErrorCampo('tipo'); }}
             >
               {op}
@@ -615,12 +645,21 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
 
   if (modo === 'ver') {
     return (
-      <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3">
+      <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3 transition-shadow hover:shadow-sm">
         <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
           <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
           {subtarea.titulo}
         </div>
-        <p className="text-xs text-[#7a7580]">Fecha objetivo: {subtarea.fecha_objetivo} — {subtarea.horas_estimadas} h estimadas</p>
+        <p className="text-xs text-[#7a7580] flex items-center gap-3 flex-wrap">
+          <span className="inline-flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">event</span>
+            {subtarea.fecha_objetivo}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
+            {subtarea.horas_estimadas} h estimadas
+          </span>
+        </p>
 
         <div aria-live="polite">
           {mensajeExito && !error && <p className={EXITO} role="status">{mensajeExito}</p>}

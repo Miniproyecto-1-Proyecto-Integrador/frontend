@@ -168,27 +168,42 @@ export default function CrearEvento() {
 
   return (
     <div className="flex flex-col gap-2 pb-16">
-      <div className="mb-6">
+      {/* Cabecera con un leve acento decorativo detrás del título — el único
+          "momento" visual de la página; el resto se mantiene tranquilo. */}
+      <div className="relative overflow-hidden rounded-2xl mb-6">
+        <div
+          className="pointer-events-none absolute -top-16 -right-10 w-64 h-64 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl"
+          aria-hidden="true"
+        />
+        <span
+          className="pointer-events-none absolute -right-2 -top-4 material-symbols-outlined text-[120px] text-[#63518b]/[0.06] select-none"
+          aria-hidden="true"
+        >
+          celebration
+        </span>
+
         {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
+          className={`${FONT_HEADLINE} relative text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
         >
           Crear nuevo evento
         </h1>
-        <p className="text-sm sm:text-base text-[#49454f] mt-1 max-w-2xl">
+        <p className="relative text-sm sm:text-base text-[#49454f] mt-1 max-w-2xl">
           Registra los datos del evento y opcionalmente su plan logístico inicial.
         </p>
       </div>
 
       {formStatus === 'success' && (
-        <p className="px-4 py-3 rounded-xl mb-4 font-medium bg-[#eaf7ee] text-[#1e5a34] border border-[#1e5a34]/30" role="status">
+        <p className="px-4 py-3 rounded-xl mb-4 font-medium bg-[#eaf7ee] text-[#1e5a34] border border-[#1e5a34]/30 flex items-center gap-2" role="status">
+          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">task_alt</span>
           Evento creado exitosamente. Te llevamos al evento…
         </p>
       )}
       {formError && (
-        <p className="px-4 py-3 rounded-xl mb-4 font-medium bg-[#ffdad6]/50 text-[#8c0009] border border-[#ba1a1a]/30" role="alert">
+        <p className="px-4 py-3 rounded-xl mb-4 font-medium bg-[#ffdad6]/50 text-[#8c0009] border border-[#ba1a1a]/30 flex items-center gap-2" role="alert">
+          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">error</span>
           {formError}
         </p>
       )}
@@ -197,10 +212,10 @@ export default function CrearEvento() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Columna principal */}
           <div className="lg:col-span-8 flex flex-col gap-8">
-            <fieldset disabled={eventoYaCreado || enviando} className={CARD}>
+            <fieldset disabled={eventoYaCreado || enviando} className={`${CARD} shadow-sm`}>
               <legend className="sr-only">Datos del evento</legend>
               <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
-                <div className={CARD_HEADER_ICON}>
+                <div className={`${CARD_HEADER_ICON} shadow-sm`}>
                   <span className="material-symbols-outlined text-[22px]" aria-hidden="true">celebration</span>
                 </div>
                 <div>
@@ -242,7 +257,7 @@ export default function CrearEvento() {
                         key={op}
                         type="button"
                         aria-pressed={tipo === op}
-                        className={`${PILL_BASE} ${tipo === op ? PILL_ACTIVE : PILL_INACTIVE}`}
+                        className={`${PILL_BASE} ${tipo === op ? PILL_ACTIVE : PILL_INACTIVE} transition-colors`}
                         onClick={() => setTipo(op)}
                       >
                         {op}
@@ -334,11 +349,11 @@ export default function CrearEvento() {
               </div>
             </fieldset>
 
-            <fieldset disabled={enviando} className={CARD}>
+            <fieldset disabled={enviando} className={`${CARD} shadow-sm`}>
               <legend className="sr-only">Plan logístico inicial</legend>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-[#ebedfe]">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#d2e4ff] flex items-center justify-center text-[#3c608b] flex-shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d2e4ff] to-[#e8f0ff] flex items-center justify-center text-[#3c608b] flex-shrink-0 shadow-sm">
                     <span className="material-symbols-outlined text-[22px]" aria-hidden="true">checklist_rtl</span>
                   </div>
                   <div>
@@ -352,9 +367,12 @@ export default function CrearEvento() {
               </div>
 
               {gestiones.length === 0 && (
-                <p className="text-[#49454f] italic">
-                  Aún no tienes gestiones. Agrega la primera tarea logística (por ejemplo, reservar el salón o confirmar el catering).
-                </p>
+                <div className="flex flex-col items-center text-center gap-2 py-4">
+                  <span className="material-symbols-outlined text-[26px] text-[#7a7580]" aria-hidden="true">playlist_add</span>
+                  <p className="text-[#49454f] italic">
+                    Aún no tienes gestiones. Agrega la primera tarea logística (por ejemplo, reservar el salón o confirmar el catering).
+                  </p>
+                </div>
               )}
 
               <div className="flex flex-col gap-3">
@@ -412,8 +430,18 @@ export default function CrearEvento() {
                     </div>
 
                     <div className="min-h-[1.25rem] text-sm" aria-live="polite">
-                      {gestion.status === 'saving' && <span>Guardando…</span>}
-                      {gestion.status === 'saved' && <span className="text-[#1e5a34] font-semibold">Gestión guardada</span>}
+                      {gestion.status === 'saving' && (
+                        <span className="inline-flex items-center gap-1.5 text-[#63518b]">
+                          <span className="material-symbols-outlined text-[16px] animate-spin" aria-hidden="true">progress_activity</span>
+                          Guardando…
+                        </span>
+                      )}
+                      {gestion.status === 'saved' && (
+                        <span className="inline-flex items-center gap-1.5 text-[#1e5a34] font-semibold">
+                          <span className="material-symbols-outlined text-[16px]" aria-hidden="true">check_circle</span>
+                          Gestión guardada
+                        </span>
+                      )}
                       {gestion.error && (
                         <p id={`gestion-error-${gestion.id}`} className={ERROR} role="alert">{gestion.error}</p>
                       )}
@@ -437,9 +465,9 @@ export default function CrearEvento() {
 
           {/* Columna lateral: resumen y acciones */}
           <div className="lg:col-span-4 flex flex-col gap-6 sticky top-24">
-            <div className={CARD}>
+            <div className={`${CARD} shadow-sm`}>
               <div className="flex items-center gap-2.5 pb-3 border-b border-[#ebedfe]">
-                <div className="w-8 h-8 rounded-lg bg-[#f2f3ff] flex items-center justify-center text-[#63518b]">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#f2f3ff] to-[#e4d9ff] flex items-center justify-center text-[#63518b]">
                   <span className="material-symbols-outlined text-[20px]" aria-hidden="true">analytics</span>
                 </div>
                 <h3 className={`${FONT_HEADLINE} text-base font-bold text-[#181b27]`}>Resumen del plan</h3>
@@ -456,7 +484,7 @@ export default function CrearEvento() {
               </div>
             </div>
 
-            <div className={CARD}>
+            <div className={`${CARD} shadow-sm`}>
               <button type="submit" className={BOTON_PRINCIPAL} disabled={enviando}>
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">check</span>
                 {enviando
