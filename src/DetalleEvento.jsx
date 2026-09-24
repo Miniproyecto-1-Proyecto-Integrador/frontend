@@ -855,11 +855,13 @@ function NuevaGestionForm({ eventoId, onCreada }) {
     setCampos(nuevaGestionVacia());
     setError(null);
     setErrorField(null);
+    setUltimaAgregada(null);
     toggleBtnRef.current?.focus();
   });
 
   function actualizarCampo(campo, valor) {
     setCampos((prev) => ({ ...prev, [campo]: valor }));
+    setUltimaAgregada(null);
     if (errorField === campo) {
       setError(null);
       setErrorField(null);
@@ -871,6 +873,7 @@ function NuevaGestionForm({ eventoId, onCreada }) {
     setCampos(nuevaGestionVacia());
     setError(null);
     setErrorField(null);
+    setUltimaAgregada(null);
     toggleBtnRef.current?.focus();
   }
 
