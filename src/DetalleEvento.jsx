@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   getEvent, updateEvent, deleteEvent, listSubtasks, createSubtask, updateSubtask, deleteSubtask,
 } from './services/events';
@@ -8,6 +8,8 @@ import {
   BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
 } from './components/ui';
 import { useFocusTrap } from './helpers/UseFocusTrap';
+import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
+import SuccessModal from './components/SuccessCard';
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
 const EXITO = 'text-[#1e5a34] text-xs font-semibold';
@@ -16,7 +18,11 @@ function focusField(id) {
   document.getElementById(id)?.focus();
 }
 
+// Prioridad: 1) fallo de red genuino (nunca llegó al backend) → mensaje
+// genérico, nunca el texto crudo del navegador. 2) errores de campo del
+// backend. 3) err.message de una respuesta real. 4) fallback del llamador.
 function mensajeError(err, fallback) {
+  if (esFalloDeRed(err)) return MENSAJE_ERROR_RED;
   const fe = err.fieldErrors || {};
   return fe.titulo?.[0] || fe.horas_estimadas?.[0] || fe.fecha_objetivo?.[0]
     || fe.nombre?.[0] || fe.tipo?.[0] || fe.fecha_hora?.[0] || fe.cliente_contacto?.[0] || fe.lugar?.[0]
@@ -45,20 +51,39 @@ function useEscapeToClose(activo, onCerrar) {
 
 export default function DetalleEvento() {
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const [pageStatus, setPageStatus] = useState('loading'); // loading | ok | notfound | error
   const [evento, setEvento] = useState(null);
   const [subtareas, setSubtareas] = useState([]);
-  const [eventoEliminado, setEventoEliminado] = useState(false);
-  // Mensaje de éxito al eliminar una subtarea: como el item desaparece de
-  // la lista, no hay dónde mostrarlo "en su propia tarjeta" (ya no existe),
-  // así que vive a nivel de esta vista, junto a la lista de gestiones.
-  const [ultimaEliminada, setUltimaEliminada] = useState(null);
+
+  // Modal de éxito/error compartido por toda la vista: fondo difuminado,
+  // focus trap y un único botón (Aceptar o Reintentar, según variant) en
+  // un solo lugar. focoRef: a qué elemento vuelve el foco si no hay una
+  // acción posterior. onCerrar: acción a ejecutar al cerrar (ej. quitar la
+  // gestión de la lista, salir del evento eliminado, o reintentar la carga).
+  const [feedback, setFeedback] = useState({
+    open: false, variant: 'exito', titulo: '', mensaje: '', focoRef: null, onCerrar: null,
+  });
 
   // Foco en el <h1> al terminar de cargar: en una SPA no hay recarga de
   // página, así que sin esto un usuario de lector de pantalla no se entera
   // de que "navegó" a esta vista.
   const headingRef = useRef(null);
+  // Fallback de foco al cerrar el modal cuando la acción no deja un
+  // elemento propio al que volver (ej. se eliminó la gestión completa).
+  const planHeadingRef = useRef(null);
+
+  function mostrarFeedback({ variant = 'exito', titulo, mensaje, focoRef, onCerrar }) {
+    setFeedback({ open: true, variant, titulo, mensaje, focoRef, onCerrar });
+  }
+
+  function cerrarFeedback() {
+    const { focoRef, onCerrar } = feedback;
+    setFeedback({ open: false, variant: 'exito', titulo: '', mensaje: '', focoRef: null, onCerrar: null });
+    if (onCerrar) onCerrar();
+    else (focoRef ?? planHeadingRef).current?.focus();
+  }
 
   const cargar = useCallback(async () => {
     setPageStatus('loading');
@@ -93,18 +118,13 @@ export default function DetalleEvento() {
 
   if (pageStatus === 'error') {
     return (
-      <div className={CARD}>
-        <p className={ERROR} role="alert">No pudimos cargar el evento. Revisa tu conexión.</p>
-        <button type="button" className={`${BOTON_PRINCIPAL} self-start`} onClick={cargar}>Reintentar</button>
-      </div>
-    );
-  }
-
-  if (eventoEliminado) {
-    return (
-      <p className="px-4 py-3 rounded-xl bg-[#eaf7ee] text-[#1e5a34] border border-[#1e5a34]/30" role="status">
-        Evento eliminado.
-      </p>
+      <SuccessModal
+        open
+        variant="error"
+        titulo="No pudimos cargar el evento"
+        mensaje={MENSAJE_ERROR_RED}
+        onCerrar={cargar}
+      />
     );
   }
 
@@ -118,11 +138,10 @@ export default function DetalleEvento() {
 
       {/* Cabecera con un leve acento decorativo detrás del título — el único
           "momento" visual de la página; el resto se mantiene tranquilo. */}
-      <div className="relative overflow-hidden rounded-2xl mb-4">
-        <div
-          className="pointer-events-none absolute -top-14 -left-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-50 blur-2xl"
-          aria-hidden="true"
-        />
+      <div className="relative mb-4">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+          <div className="absolute -top-14 -left-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-50 blur-2xl" />
+        </div>
         {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
         <h1
           ref={headingRef}
@@ -137,7 +156,8 @@ export default function DetalleEvento() {
         <EventoCard
           evento={evento}
           onGuardado={(actualizado) => setEvento(actualizado)}
-          onEliminado={() => setEventoEliminado(true)}
+          onEliminado={() => navigate('/evento')}
+          onFeedback={mostrarFeedback}
         />
 
         <div className={CARD}>
@@ -146,7 +166,13 @@ export default function DetalleEvento() {
               <span className="material-symbols-outlined text-[22px]" aria-hidden="true">checklist_rtl</span>
             </div>
             <div>
-              <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Plan logístico</h2>
+              <h2
+                ref={planHeadingRef}
+                tabIndex={-1}
+                className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27] focus:outline-none`}
+              >
+                Plan logístico
+              </h2>
               {subtareas.length > 0 && (
                 <p className="text-xs text-[#7a7580]">
                   {subtareas.length} {subtareas.length === 1 ? 'gestión' : 'gestiones'} en el plan
@@ -162,12 +188,6 @@ export default function DetalleEvento() {
             </div>
           )}
 
-          <div aria-live="polite">
-            {ultimaEliminada && (
-              <p className={EXITO} role="status">"{ultimaEliminada}" eliminada del plan.</p>
-            )}
-          </div>
-
           <div className="flex flex-col gap-3" aria-label={`${subtareas.length} gestiones logísticas`}>
             {subtareas.map((s) => (
               <SubtareaCard
@@ -177,23 +197,29 @@ export default function DetalleEvento() {
                 onGuardada={(actualizada) =>
                   setSubtareas((prev) => prev.map((x) => (x.id === actualizada.id ? actualizada : x)))
                 }
-                onEliminada={(idEliminado, tituloEliminado) => {
+                onEliminada={(idEliminado) => {
                   setSubtareas((prev) => prev.filter((x) => x.id !== idEliminado));
-                  setUltimaEliminada(tituloEliminado);
+                  planHeadingRef.current?.focus();
                 }}
+                onFeedback={mostrarFeedback}
               />
             ))}
           </div>
 
           <NuevaGestionForm
             eventoId={id}
-            onCreada={(nueva) => {
-              setSubtareas((prev) => [...prev, nueva]);
-              setUltimaEliminada(null);
-            }}
+            onCreada={(nueva) => setSubtareas((prev) => [...prev, nueva])}
           />
         </div>
       </div>
+
+      <SuccessModal
+        open={feedback.open}
+        variant={feedback.variant}
+        titulo={feedback.titulo}
+        mensaje={feedback.mensaje}
+        onCerrar={cerrarFeedback}
+      />
     </div>
   );
 }
@@ -207,13 +233,11 @@ const ID_POR_CAMPO_EVENTO = {
   nombre: 'ev-nombre', tipo: 'ev-tipo', fecha_hora: 'ev-fecha', cliente_contacto: 'ev-contacto', lugar: 'ev-lugar',
 };
 
-function EventoCard({ evento, onGuardado, onEliminado }) {
+function EventoCard({ evento, onGuardado, onEliminado, onFeedback }) {
   const [modo, setModo] = useState('ver');
   const [confirmando, setConfirmando] = useState(false);
   const [estado, setEstado] = useState('idle');
-  const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [mensajeExito, setMensajeExito] = useState(null);
 
   const { fecha: fechaInicial, hora: horaInicial } = splitFechaHora(evento.fecha_hora);
   const tipoEsSugerido = TIPOS_SUGERIDOS.includes(evento.tipo);
@@ -269,7 +293,6 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
     setClienteContacto(evento.cliente_contacto);
     setLugar(evento.lugar);
     setFieldErrors({});
-    setError(null);
     setModo('ver');
     editarBtnRef.current?.focus();
   }
@@ -283,7 +306,6 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
     e.preventDefault();
 
     setEstado('guardando');
-    setError(null);
     setFieldErrors({});
     try {
       const actualizado = await updateEvent(evento.id, {
@@ -296,37 +318,50 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
       onGuardado(actualizado);
       setEstado('idle');
       setModo('ver');
-      setMensajeExito('Cambios guardados.');
-      editarBtnRef.current?.focus();
+      onFeedback({
+        titulo: 'Evento editado',
+        mensaje: 'Los cambios se guardaron correctamente.',
+        focoRef: editarBtnRef,
+      });
     } catch (err) {
       setEstado('error');
       const errores = err.fieldErrors || {};
       const hayErroresDeCampo = Object.keys(errores).length > 0;
       setFieldErrors(errores);
       if (hayErroresDeCampo) {
-        // Ya se muestra el mensaje junto a cada campo; mostrar además el
-        // banner genérico duplicaría el mismo texto (ver mensajeError).
-        setError(null);
         enfocarPrimerError(errores);
       } else {
         // Error sin campos asociados (red caída, 500, etc.): no hay dónde
-        // pintarlo junto a un input, así que sí usamos el banner genérico.
-        setError(mensajeError(err, 'No pudimos guardar los cambios.'));
+        // pintarlo junto a un input, así que usamos el modal genérico.
+        onFeedback({
+          variant: 'error',
+          titulo: 'No pudimos guardar los cambios',
+          mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+          focoRef: editarBtnRef,
+        });
       }
     }
   }
 
   async function confirmarEliminar() {
     setEstado('eliminando');
-    setError(null);
     try {
       await deleteEvent(evento.id);
-      onEliminado();
+      setConfirmando(false);
+      onFeedback({
+        titulo: 'Evento eliminado',
+        mensaje: 'El evento y su plan logístico se eliminaron correctamente.',
+        onCerrar: onEliminado,
+      });
     } catch (err) {
       setEstado('error');
-      setError(mensajeError(err, 'No pudimos eliminar el evento.'));
       setConfirmando(false);
-      eliminarBtnRef.current?.focus();
+      onFeedback({
+        variant: 'error',
+        titulo: 'No pudimos eliminar el evento',
+        mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+        focoRef: eliminarBtnRef,
+      });
     }
   }
 
@@ -359,17 +394,12 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
           </div>
         </dl>
 
-        <div aria-live="polite">
-          {mensajeExito && !error && <p className={EXITO} role="status">{mensajeExito}</p>}
-          {error && <p className={ERROR} role="alert">{error}</p>}
-        </div>
-
         <div className="flex gap-3">
           <button
             ref={editarBtnRef}
             type="button"
             className={BOTON_SECUNDARIO}
-            onClick={() => { setModo('editar'); setMensajeExito(null); }}
+            onClick={() => setModo('editar')}
             aria-label={`Editar evento: ${evento.nombre}`}
           >
             Editar
@@ -379,7 +409,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
               ref={eliminarBtnRef}
               type="button"
               className={BOTON_PELIGRO}
-              onClick={() => { setConfirmando(true); setMensajeExito(null); }}
+              onClick={() => setConfirmando(true)}
               aria-label={`Eliminar evento: ${evento.nombre}`}
             >
               Eliminar evento
@@ -538,10 +568,6 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
         {fieldErrors.lugar && <p id="ev-error-lugar" className={ERROR} role="alert">{fieldErrors.lugar[0]}</p>}
       </div>
 
-      <div aria-live="polite">
-        {error && <p className={ERROR} role="alert">{error}</p>}
-      </div>
-
       <div className="flex gap-3">
         <button type="submit" className={BOTON_PRINCIPAL} disabled={estado === 'guardando'} aria-live="polite">
           {estado === 'guardando' ? 'Guardando…' : 'Guardar cambios'}
@@ -557,13 +583,11 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
 // -------------------- Tarjeta de subtarea (ver / editar / eliminar) --------------------
 // Igual que arriba: sin validación local, solo se reflejan los errores del backend.
 
-function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
+function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback }) {
   const [modo, setModo] = useState('ver');
   const [confirmando, setConfirmando] = useState(false);
   const [estado, setEstado] = useState('idle');
-  const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
-  const [mensajeExito, setMensajeExito] = useState(null);
 
   const [titulo, setTitulo] = useState(subtarea.titulo);
   const [fechaObjetivo, setFechaObjetivo] = useState(subtarea.fecha_objetivo);
@@ -593,7 +617,6 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
     setTitulo(subtarea.titulo);
     setFechaObjetivo(subtarea.fecha_objetivo);
     setHorasEstimadas(subtarea.horas_estimadas);
-    setError(null);
     setErrorField(null);
     setModo('ver');
     editarBtnRef.current?.focus();
@@ -603,7 +626,6 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
     e.preventDefault();
 
     setEstado('guardando');
-    setError(null);
     setErrorField(null);
     try {
       const actualizada = await updateSubtask(eventoId, subtarea.id, {
@@ -614,8 +636,11 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
       onGuardada(actualizada);
       setEstado('idle');
       setModo('ver');
-      setMensajeExito('Cambios guardados.');
-      editarBtnRef.current?.focus();
+      onFeedback({
+        titulo: 'Gestión editada',
+        mensaje: 'Los cambios se guardaron correctamente.',
+        focoRef: editarBtnRef,
+      });
     } catch (err) {
       setEstado('error');
       const fe = err.fieldErrors || {};
@@ -624,22 +649,38 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
       else if (fe.fecha_objetivo) campo = 'fecha';
       else if (fe.horas_estimadas) campo = 'horas';
       setErrorField(campo);
-      setError(mensajeError(err, 'No pudimos guardar la gestión.'));
-      if (campo) focusField(`sub-${campo}-${subtarea.id}`);
+      if (campo) {
+        focusField(`sub-${campo}-${subtarea.id}`);
+      } else {
+        onFeedback({
+          variant: 'error',
+          titulo: 'No pudimos guardar la gestión',
+          mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+          focoRef: editarBtnRef,
+        });
+      }
     }
   }
 
   async function confirmarEliminar() {
     setEstado('eliminando');
-    setError(null);
     try {
       await deleteSubtask(eventoId, subtarea.id);
-      onEliminada(subtarea.id, subtarea.titulo);
+      setConfirmando(false);
+      onFeedback({
+        titulo: 'Gestión eliminada',
+        mensaje: `"${subtarea.titulo}" se eliminó del plan correctamente.`,
+        onCerrar: () => onEliminada(subtarea.id),
+      });
     } catch (err) {
       setEstado('error');
-      setError(mensajeError(err, 'No pudimos eliminar la gestión.'));
       setConfirmando(false);
-      eliminarBtnRef.current?.focus();
+      onFeedback({
+        variant: 'error',
+        titulo: 'No pudimos eliminar la gestión',
+        mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+        focoRef: eliminarBtnRef,
+      });
     }
   }
 
@@ -661,17 +702,12 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
           </span>
         </p>
 
-        <div aria-live="polite">
-          {mensajeExito && !error && <p className={EXITO} role="status">{mensajeExito}</p>}
-          {error && <p className={ERROR} role="alert">{error}</p>}
-        </div>
-
         <div className="flex gap-3">
           <button
             ref={editarBtnRef}
             type="button"
             className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
-            onClick={() => { setModo('editar'); setMensajeExito(null); }}
+            onClick={() => setModo('editar')}
             aria-label={`Editar gestión: ${subtarea.titulo}`}
           >
             Editar
@@ -681,7 +717,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
               ref={eliminarBtnRef}
               type="button"
               className={`${BOTON_PELIGRO} py-1.5 px-4 text-xs`}
-              onClick={() => { setConfirmando(true); setMensajeExito(null); }}
+              onClick={() => setConfirmando(true)}
               aria-label={`Eliminar gestión: ${subtarea.titulo}`}
             >
               Eliminar
@@ -739,23 +775,28 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
       noValidate
       aria-label={`Editar gestión: ${subtarea.titulo}`}
     >
+      <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
+        <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">edit</span>
+        Editar gestión
+      </div>
+
       <div className="flex flex-col gap-1">
         <label htmlFor={`sub-titulo-${subtarea.id}`} className={LABEL}>Título</label>
         <input
           id={`sub-titulo-${subtarea.id}`} type="text" className={`${INPUT} pl-4`} value={titulo}
-          onChange={(e) => { setTitulo(e.target.value); setError(null); setErrorField(null); }}
+          onChange={(e) => { setTitulo(e.target.value); setErrorField(null); }}
           aria-invalid={errorField === 'titulo'}
-          aria-describedby={error ? idError : undefined}
+          aria-describedby={errorField === 'titulo' ? idError : undefined}
         />
+        {errorField === 'titulo' && <p id={idError} className={ERROR} role="alert">Este campo es obligatorio.</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-fecha-${subtarea.id}`} className={LABEL}>Fecha objetivo</label>
           <input
             id={`sub-fecha-${subtarea.id}`} type="date" className={`${INPUT} pl-4`} value={fechaObjetivo}
-            onChange={(e) => { setFechaObjetivo(e.target.value); setError(null); setErrorField(null); }}
+            onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); }}
             aria-invalid={errorField === 'fecha'}
-            aria-describedby={error ? idError : undefined}
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -763,15 +804,10 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada }) {
           <input
             id={`sub-horas-${subtarea.id}`} type="number" min="0.5" step="0.5" className={`${INPUT} pl-4`}
             value={horasEstimadas}
-            onChange={(e) => { setHorasEstimadas(e.target.value); setError(null); setErrorField(null); }}
+            onChange={(e) => { setHorasEstimadas(e.target.value); setErrorField(null); }}
             aria-invalid={errorField === 'horas'}
-            aria-describedby={error ? idError : undefined}
           />
         </div>
-      </div>
-
-      <div aria-live="polite">
-        {error && <p id={idError} className={ERROR} role="alert">{error}</p>}
       </div>
 
       <div className="flex gap-3">

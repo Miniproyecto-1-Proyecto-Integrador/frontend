@@ -5,6 +5,7 @@ import {
   FONT_HEADLINE, CARD, CARD_HEADER_ICON, INPUT_WRAP, INPUT_ICON, INPUT, LABEL, ERROR,
   BOTON_PRINCIPAL, BOTON_SECUNDARIO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
 } from './components/ui';
+import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 
 // El backend acepta "tipo" como texto libre; estas son solo sugerencias
 // visuales (pills). "Otro" abre un campo de texto normal.
@@ -104,7 +105,9 @@ export default function CrearEvento() {
         huboError = true;
         let mensaje = 'No pudimos guardar esta gestión.';
         let errorField = null;
-        if (err.fieldErrors?.titulo) { mensaje = err.fieldErrors.titulo[0]; errorField = 'titulo'; }
+        if (esFalloDeRed(err)) {
+          mensaje = MENSAJE_ERROR_RED;
+        } else if (err.fieldErrors?.titulo) { mensaje = err.fieldErrors.titulo[0]; errorField = 'titulo'; }
         else if (err.fieldErrors?.horas_estimadas) { mensaje = err.fieldErrors.horas_estimadas[0]; errorField = 'horas'; }
         else if (err.fieldErrors?.fecha_objetivo) { mensaje = err.fieldErrors.fecha_objetivo[0]; errorField = 'fecha'; }
         else if (err.message) mensaje = err.message;
@@ -157,7 +160,7 @@ export default function CrearEvento() {
         setFieldErrors(err.fieldErrors);
         focusField(Object.keys(err.fieldErrors)[0] === 'fecha_hora' ? 'fecha' : Object.keys(err.fieldErrors)[0]);
       }
-      setFormError(err.message || 'No pudimos guardar el evento, intenta de nuevo.');
+      setFormError(esFalloDeRed(err) ? MENSAJE_ERROR_RED : (err.message || 'No pudimos guardar el evento, intenta de nuevo.'));
     }
   }
 
@@ -170,17 +173,13 @@ export default function CrearEvento() {
     <div className="flex flex-col gap-2 pb-16">
       {/* Cabecera con un leve acento decorativo detrás del título — el único
           "momento" visual de la página; el resto se mantiene tranquilo. */}
-      <div className="relative overflow-hidden rounded-2xl mb-6">
-        <div
-          className="pointer-events-none absolute -top-16 -right-10 w-64 h-64 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl"
-          aria-hidden="true"
-        />
-        <span
-          className="pointer-events-none absolute -right-2 -top-4 material-symbols-outlined text-[120px] text-[#63518b]/[0.06] select-none"
-          aria-hidden="true"
-        >
-          celebration
-        </span>
+      <div className="relative mb-6">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+          <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl" />
+          <span className="absolute -right-2 -top-4 material-symbols-outlined text-[120px] text-[#63518b]/[0.06] select-none">
+            celebration
+          </span>
+        </div>
 
         {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
         <h1
