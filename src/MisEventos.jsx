@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { listEvents } from './services/events';
 import {
-  FONT_HEADLINE, CARD, CARD_HEADER_ICON, ERROR, BOTON_PRINCIPAL,
+  FONT_HEADLINE, CARD, CARD_HEADER_ICON, BOTON_PRINCIPAL,
 } from './components/ui';
+import SuccessModal from './components/SuccessCard';
 
 function formatFechaHora(iso) {
   if (!iso) return '';
@@ -56,32 +57,17 @@ export default function MisEventos() {
     return <p className="px-4 py-3" role="status">Cargando eventos…</p>;
   }
 
-  if (status === 'error') {
-    return (
-      <div className={CARD}>
-        <p className={ERROR} role="alert">No pudimos cargar tus eventos. Revisa tu conexión.</p>
-        <button type="button" className={`${BOTON_PRINCIPAL} self-start`} onClick={cargar}>
-          Reintentar
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col gap-6 pb-16">
       {/* Cabecera con un leve acento decorativo detrás del título — el único
           "momento" visual de la página; el resto se mantiene tranquilo. */}
-      <div className="relative overflow-hidden rounded-2xl">
-        <div
-          className="pointer-events-none absolute -top-16 -right-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl"
-          aria-hidden="true"
-        />
-        <span
-          className="pointer-events-none absolute -right-2 -top-2 material-symbols-outlined text-[110px] text-[#63518b]/[0.06] select-none"
-          aria-hidden="true"
-        >
-          celebration
-        </span>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
+          <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl" />
+          <span className="absolute -right-2 -top-2 material-symbols-outlined text-[110px] text-[#63518b]/[0.06] select-none">
+            celebration
+          </span>
+        </div>
 
         <div className="relative flex flex-col gap-1 py-1">
           {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
@@ -169,6 +155,14 @@ export default function MisEventos() {
           )}
         </>
       )}
+
+      <SuccessModal
+        open={status === 'error'}
+        variant="error"
+        titulo="No se pudieron cargar tus eventos"
+        mensaje="Revisa tu conexión e inténtalo de nuevo."
+        onCerrar={cargar}
+      />
     </div>
   );
 }
