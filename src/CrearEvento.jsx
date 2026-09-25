@@ -142,7 +142,7 @@ export default function CrearEvento() {
     setFieldErrors({});
 
     const tipoFinal = tipo === 'Otro' ? tipoPersonalizado.trim() : tipo;
-    const fecha_hora = `${fecha}T${hora}:00Z`;
+    const fecha_hora = `${fecha}T${hora}:00`;
 
     try {
       const evento = await createEvent({
