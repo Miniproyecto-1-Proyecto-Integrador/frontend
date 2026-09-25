@@ -289,7 +289,7 @@ function EventoCard({ evento, onGuardado, onEliminado }) {
       const actualizado = await updateEvent(evento.id, {
         nombre: nombre.trim(),
         tipo: tipo === 'Otro' ? tipoPersonalizado.trim() : tipo,
-        fecha_hora: `${fecha}T${hora}:00Z`,
+        fecha_hora: `${fecha}T${hora}:00`,
         cliente_contacto: clienteContacto.trim(),
         lugar: lugar.trim(),
       });
