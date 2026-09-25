@@ -463,7 +463,7 @@ export default function CrearEvento() {
           </div>
 
           {/* Columna lateral: resumen y acciones */}
-          <div className="lg:col-span-4 flex flex-col gap-6 sticky top-24">
+          <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-24">
             <div className={`${CARD} shadow-sm`}>
               <div className="flex items-center gap-2.5 pb-3 border-b border-[#ebedfe]">
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#f2f3ff] to-[#e4d9ff] flex items-center justify-center text-[#63518b]">

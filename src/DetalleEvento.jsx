@@ -130,7 +130,7 @@ export default function DetalleEvento() {
 
   return (
     <div className="flex flex-col gap-2 pb-16">
-      <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2">
+      <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2 flex-wrap">
         <Link to="/evento" className="hover:underline">Mis Eventos</Link>
         <span className="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
         <span className="text-[#63518b] font-bold" aria-current="page">{evento.nombre}</span>
