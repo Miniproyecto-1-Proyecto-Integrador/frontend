@@ -1,11 +1,20 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createEvent, createSubtask } from './services/events';
 import {
-  FONT_HEADLINE, CARD, CARD_HEADER_ICON, INPUT_WRAP, INPUT_ICON, INPUT, LABEL, ERROR,
-  BOTON_PRINCIPAL, BOTON_SECUNDARIO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
+  BOTON_PRINCIPAL, BOTON_SECUNDARIO,
+  CARD, CARD_HEADER_ICON,
+  ERROR,
+  FONT_HEADLINE,
+  INPUT,
+  INPUT_ICON,
+  INPUT_WRAP,
+  InputIcono, LABEL,
+  PILL_ACTIVE,
+  PILL_BASE,
+  PILL_INACTIVE,
 } from './components/ui';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
+import { createEvent, createSubtask } from './services/events';
 
 // El backend acepta "tipo" como texto libre; estas son solo sugerencias
 // visuales (pills). "Otro" abre un campo de texto normal.
@@ -382,12 +391,12 @@ export default function CrearEvento() {
                       Gestión {index + 1}
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1">
                       <label htmlFor={`gestion-titulo-${gestion.id}`} className={LABEL}>Título</label>
-                      <input
+                      <InputIcono
+                        icon="edit_calendar"
                         id={`gestion-titulo-${gestion.id}`}
                         type="text"
-                        className={`${INPUT} pl-4`}
                         placeholder="Ej: Reservar salón"
                         value={gestion.titulo}
                         disabled={gestion.status === 'saved' || gestion.status === 'saving'}
@@ -400,10 +409,10 @@ export default function CrearEvento() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
                         <label htmlFor={`gestion-fecha-${gestion.id}`} className={LABEL}>Fecha objetivo</label>
-                        <input
+                        <InputIcono
+                          icon="calendar_month"
                           id={`gestion-fecha-${gestion.id}`}
                           type="date"
-                          className={`${INPUT} pl-4`}
                           value={gestion.fecha_objetivo}
                           disabled={gestion.status === 'saved' || gestion.status === 'saving'}
                           onChange={(e) => actualizarGestion(gestion.id, 'fecha_objetivo', e.target.value)}
@@ -413,12 +422,12 @@ export default function CrearEvento() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label htmlFor={`gestion-horas-${gestion.id}`} className={LABEL}>Horas estimadas</label>
-                        <input
+                        <InputIcono
+                          icon="schedule"
                           id={`gestion-horas-${gestion.id}`}
                           type="number"
                           min="0.5"
                           step="0.5"
-                          className={`${INPUT} pl-4`}
                           value={gestion.horas_estimadas}
                           disabled={gestion.status === 'saved' || gestion.status === 'saving'}
                           onChange={(e) => actualizarGestion(gestion.id, 'horas_estimadas', e.target.value)}

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { useFocusTrap } from '../helpers/UseFocusTrap';
+import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
 
 // "Hoy" y "Progreso y Métricas" todavía no existen como pantallas —
 // se muestran deshabilitadas para no simular navegación a algo que no
@@ -22,7 +23,13 @@ export default function Layout() {
   // botón hamburguesa del header y se cierra con Escape, con click en el
   // fondo oscuro, o al elegir una opción de navegación.
   const [menuAbierto, setMenuAbierto] = useState(false);
-  const location = useLocation();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  function cerrarSesion() {
+    logout();
+    navigate('/login', { replace: true });
+  }
 
   const sidebarRef = useRef(null);
   const menuBtnRef = useRef(null);
@@ -139,13 +146,22 @@ export default function Layout() {
           <span className="material-symbols-outlined text-[24px]" aria-hidden="true">menu</span>
         </button>
 
-        {/* Sin datos de usuario reales: el login (US-11) es de un sprint
-            futuro, así que no hay nombre ni sesión que mostrar todavía. */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-[#eaddff] text-[#63518b] flex items-center justify-center">
             <span className="material-symbols-outlined text-[20px]" aria-hidden="true">person</span>
           </div>
-          <span className="text-sm font-semibold text-[#181b27] hidden sm:inline">Organizador/a</span>
+          <span className="text-sm font-semibold text-[#181b27] hidden sm:inline">
+            {user?.username || 'Organizador/a'}
+          </span>
+          <button
+            type="button"
+            onClick={cerrarSesion}
+            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-[#49454f] transition-colors hover:bg-[#f2f3ff] hover:text-[#181b27] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]"
+          >
+            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span>
+            <span className="hidden sm:inline">Cerrar sesión</span>
+            <span className="sr-only sm:hidden">Cerrar sesión</span>
+          </button>
         </div>
       </header>
 

@@ -1,6 +1,7 @@
 // Funciones de API para eventos y subtareas / gestiones
 // logísticas.
 import { API_URL } from './api';
+import { tokens } from './auth';
 
 /**
  * Función interna: hace la petición HTTP, revisa si el backend
@@ -8,11 +9,17 @@ import { API_URL } from './api';
  * convertido a objeto de JavaScript.
 **/
 async function request(path, options = {}) {
+  const headers = {
+    ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    ...options.headers,
+  };
+
+  const access = tokens.access();
+  if (access) headers.Authorization = `Bearer ${access}`;
+
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: options.body
-      ? { 'Content-Type': 'application/json', ...options.headers }
-      : options.headers,
+    headers,
   });
 
   // DELETE exitoso responde 204 y no trae body para parsear.
@@ -22,7 +29,7 @@ async function request(path, options = {}) {
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    // Si el backend manda { "detail": "..." } (típico en 404), usamos ese mensaje.
+    // Si el backend manda { "detail": "..." } (típico en 404 y 401), usamos ese mensaje.
     // Si manda { "campo": ["mensaje"] } (típico en 400), lo guardamos en
     // error.fieldErrors para poder mostrarlo junto al campo del formulario.
     const error = new Error(
