@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useFocusTrap } from '../helpers/UseFocusTrap';
 import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
@@ -11,9 +11,9 @@ import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
 // (GET /api/events/) que no implementa nada de US-04 — solo permite
 // navegar a los eventos que ya existen.
 const NAV_ITEMS = [
+  { to: '/hoy', label: 'Hoy', icon: 'today' },
   { to: '/crear', label: 'Crear Evento', icon: 'add_circle' },
   { to: '/evento', label: 'Mis Eventos', icon: 'event_available' },
-  { label: 'Hoy', icon: 'today', disabled: true },
   { label: 'Progreso y Métricas', icon: 'query_stats', disabled: true },
 ];
 
@@ -25,6 +25,7 @@ export default function Layout() {
   const [menuAbierto, setMenuAbierto] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   function cerrarSesion() {
     logout();

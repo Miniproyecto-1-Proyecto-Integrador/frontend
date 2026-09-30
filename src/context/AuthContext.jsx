@@ -26,6 +26,15 @@ export function AuthProvider({ children }) {
         setStatus('anon');
       });
   }, []);
+  
+  useEffect(() => {function alExpirar() {
+    setUser(null);
+    setStatus('anon');
+  }
+  window.addEventListener('auth:expired', alExpirar);
+  return () => window.removeEventListener('auth:expired', alExpirar);
+}, []);
+
 
   const login = useCallback(async (username, password) => {
     const data = await apiLogin(username, password);

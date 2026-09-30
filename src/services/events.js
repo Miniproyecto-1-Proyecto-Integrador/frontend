@@ -1,8 +1,7 @@
 // Funciones de API para eventos y subtareas / gestiones
 // logísticas.
 import { API_URL } from './api';
-import { tokens } from './auth';
-
+import { authFetch } from './auth';
 /**
  * Función interna: hace la petición HTTP, revisa si el backend
  * respondió con error y, si todo salió bien, devuelve el JSON ya
@@ -14,10 +13,7 @@ async function request(path, options = {}) {
     ...options.headers,
   };
 
-  const access = tokens.access();
-  if (access) headers.Authorization = `Bearer ${access}`;
-
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authFetch(`${API_URL}${path}`, {
     ...options,
     headers,
   });
@@ -109,4 +105,20 @@ export function updateSubtask(eventId, id, payload) {
 /** DELETE /events/:eventId/subtasks/:id/ — elimina una gestión logística */
 export function deleteSubtask(eventId, id) {
   return request(`/events/${eventId}/subtasks/${id}/`, { method: 'DELETE' });
+}
+
+// ----------------------- Vista "Hoy" -----------------------
+
+/**
+ * GET /hoy/ — gestiones del organizador agrupadas en vencidas / hoy / próximas.
+ * filtros: { estado: 'pendiente' | 'hecha' | 'todas', evento: <id> }
+ * Solo se mandan los que vengan con valor; si se omiten, el backend aplica
+ * su default (estado=pendiente, todos los eventos).
+ */
+export function getHoy({ estado, evento } = {}) {
+  const params = new URLSearchParams();
+  if (estado) params.set('estado', estado);
+  if (evento) params.set('evento', evento);
+  const query = params.toString();
+  return request(`/hoy/${query ? `?${query}` : ''}`);
 }
