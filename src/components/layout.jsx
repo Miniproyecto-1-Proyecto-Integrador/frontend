@@ -58,6 +58,44 @@ export default function Layout() {
   // del layout, no un diálogo, así que no atrapamos el foco ahí.
   useFocusTrap(menuAbierto, sidebarRef);
 
+    // Menú del perfil (nombre + flecha). Es un botón con aria-expanded que
+  // muestra u oculta un panel con los datos del usuario y "Cerrar sesión".
+  const [perfilAbierto, setPerfilAbierto] = useState(false);
+  const perfilRef = useRef(null);
+  const perfilBtnRef = useRef(null);
+
+  // Se cierra al cambiar de ruta.
+  useEffect(() => {
+    setPerfilAbierto(false);
+  }, [location.pathname]);
+
+  // Se cierra con Escape (devolviendo el foco al botón), con clic fuera
+  // o cuando el foco del teclado sale del menú.
+  useEffect(() => {
+    if (!perfilAbierto) return;
+
+    function onKeyDown(e) {
+      if (e.key === 'Escape') {
+        setPerfilAbierto(false);
+        perfilBtnRef.current?.focus();
+      }
+    }
+    function onFueraDelMenu(e) {
+      if (perfilRef.current && !perfilRef.current.contains(e.target)) {
+        setPerfilAbierto(false);
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousedown', onFueraDelMenu);
+    document.addEventListener('focusin', onFueraDelMenu);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('mousedown', onFueraDelMenu);
+      document.removeEventListener('focusin', onFueraDelMenu);
+    };
+  }, [perfilAbierto]);
+
   return (
     <div className="min-h-screen bg-[#faf8ff] text-[#181b27]">
       {/* Fondo oscuro del drawer: solo aparece en mobile mientras el menú
@@ -142,27 +180,57 @@ export default function Layout() {
           onClick={() => setMenuAbierto(true)}
           aria-label="Abrir menú"
           aria-expanded={menuAbierto}
-          aria-controls="sidebar-nav"
-        >
+          aria-controls="sidebar-nav">
           <span className="material-symbols-outlined text-[24px]" aria-hidden="true">menu</span>
         </button>
 
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[#eaddff] text-[#63518b] flex items-center justify-center">
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">person</span>
-          </div>
-          <span className="text-sm font-semibold text-[#181b27] hidden sm:inline">
-            {user?.username || 'Organizador/a'}
-          </span>
+        <div ref={perfilRef} className="relative">
           <button
+            ref={perfilBtnRef}
             type="button"
-            onClick={cerrarSesion}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-[#49454f] transition-colors hover:bg-[#f2f3ff] hover:text-[#181b27] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]"
-          >
-            <span className="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span>
-            <span className="hidden sm:inline">Cerrar sesión</span>
-            <span className="sr-only sm:hidden">Cerrar sesión</span>
+            onClick={() => setPerfilAbierto((v) => !v)}
+            aria-expanded={perfilAbierto}
+            aria-controls="menu-perfil"
+            aria-label={`Menú de ${user?.username || 'usuario'}`}
+            className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#f2f3ff] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]">
+            <span className="w-9 h-9 rounded-full bg-[#eaddff] text-[#63518b] flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">person</span>
+            </span>
+            <span className="text-sm font-semibold text-[#181b27] hidden sm:inline">
+              {user?.username || 'Organizador/a'}
+            </span>
+            <span
+              className={`material-symbols-outlined text-[20px] text-[#49454f] transition-transform ${perfilAbierto ? 'rotate-180' : ''}`}
+              aria-hidden="true">
+              expand_more
+            </span>
           </button>
+
+          {perfilAbierto && (
+            <div
+              id="menu-perfil"
+              className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-[#e5e7f8] bg-white p-2 shadow-[0_8px_30px_-8px_rgba(99,81,139,0.25)]">
+              <div className="flex items-center gap-3 rounded-xl px-3 py-3">
+                <span className="w-10 h-10 flex-shrink-0 rounded-full bg-[#eaddff] text-[#63518b] flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[22px]" aria-hidden="true">person</span>
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-[#181b27]">{user?.username}</p>
+                  <p className="truncate text-xs text-[#49454f]">{user?.email}</p>
+                </div>
+              </div>
+
+              <div className="my-1 h-px bg-[#e5e7f8]" aria-hidden="true" />
+
+              <button
+                type="button"
+                onClick={cerrarSesion}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-[#93000a] transition-colors hover:bg-[#ffdad6]/50 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-[-3px] focus-visible:outline-[#ba1a1a]">
+                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">logout</span>
+                Cerrar sesión
+              </button>
+            </div>
+          )}
         </div>
       </header>
 

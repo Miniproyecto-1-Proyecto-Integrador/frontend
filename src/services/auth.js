@@ -26,6 +26,7 @@ async function post(path, body) {
   if (!res.ok) {
     const err = new Error(data?.detail || 'No pudimos completar la operación. Intenta de nuevo.');
     err.status = res.status;
+    err.fieldErrors = data && !data.detail ? data : {};
     throw err;
   }
   return data;
@@ -35,6 +36,11 @@ export async function login(username, password) {
   const data = await post('/auth/login/', { username, password });
   tokens.save(data);
   return data.user;
+}
+
+
+export async function register({ username, email, password }) {
+  return post('/auth/register/', { username, email, password });
 }
 
 export async function refreshTokens() {
