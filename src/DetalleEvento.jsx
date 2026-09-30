@@ -1,15 +1,32 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import SuccessModal from './components/SuccessCard';
 import {
-  getEvent, updateEvent, deleteEvent, listSubtasks, createSubtask, updateSubtask, deleteSubtask,
-} from './services/events';
-import {
-  FONT_HEADLINE, CARD, CARD_HEADER_ICON, INPUT_WRAP, INPUT_ICON, INPUT, LABEL, ERROR,
-  BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
+  BOTON_PELIGRO,
+  BOTON_PRINCIPAL, BOTON_SECUNDARIO,
+  CARD, CARD_HEADER_ICON,
+  ERROR,
+  FONT_HEADLINE,
+  INPUT,
+  INPUT_ICON,
+  INPUT_WRAP,
+  InputIcono,
+  LABEL,
+  PILL_ACTIVE,
+  PILL_BASE,
+  PILL_INACTIVE
 } from './components/ui';
 import { useFocusTrap } from './helpers/UseFocusTrap';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
-import SuccessModal from './components/SuccessCard';
+import {
+  createSubtask,
+  deleteEvent,
+  deleteSubtask,
+  getEvent,
+  listSubtasks,
+  updateEvent,
+  updateSubtask,
+} from './services/events';
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
 const EXITO = 'text-[#1e5a34] text-xs font-semibold';
@@ -782,8 +799,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
       <div className="flex flex-col gap-1">
         <label htmlFor={`sub-titulo-${subtarea.id}`} className={LABEL}>Título</label>
-        <input
-          id={`sub-titulo-${subtarea.id}`} type="text" className={`${INPUT} pl-4`} value={titulo}
+        <InputIcono icon="title"
+          id={`sub-titulo-${subtarea.id}`} type="text" value={titulo}
           onChange={(e) => { setTitulo(e.target.value); setErrorField(null); }}
           aria-invalid={errorField === 'titulo'}
           aria-describedby={errorField === 'titulo' ? idError : undefined}
@@ -793,16 +810,16 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-fecha-${subtarea.id}`} className={LABEL}>Fecha objetivo</label>
-          <input
-            id={`sub-fecha-${subtarea.id}`} type="date" className={`${INPUT} pl-4`} value={fechaObjetivo}
+          <InputIcono icon="event"
+            id={`sub-fecha-${subtarea.id}`} type="date" value={fechaObjetivo}
             onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); }}
             aria-invalid={errorField === 'fecha'}
           />
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-horas-${subtarea.id}`} className={LABEL}>Horas estimadas</label>
-          <input
-            id={`sub-horas-${subtarea.id}`} type="number" min="0.5" step="0.5" className={`${INPUT} pl-4`}
+          <InputIcono icon= "schedule"
+            id={`sub-horas-${subtarea.id}`} type="number" min="0.5" step="0.5"
             value={horasEstimadas}
             onChange={(e) => { setHorasEstimadas(e.target.value); setErrorField(null); }}
             aria-invalid={errorField === 'horas'}
@@ -943,10 +960,9 @@ function NuevaGestionForm({ eventoId, onCreada }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="nueva-titulo" className={LABEL}>Título</label>
-        <input
+        <InputIcono icon="edit_calendar"
           id="nueva-titulo"
           type="text"
-          className={`${INPUT} pl-4`}
           placeholder="Ej: Reservar salón"
           value={campos.titulo}
           disabled={estado === 'guardando'}
@@ -959,10 +975,9 @@ function NuevaGestionForm({ eventoId, onCreada }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor="nueva-fecha" className={LABEL}>Fecha objetivo</label>
-          <input
+          <InputIcono icon="calendar_month"
             id="nueva-fecha"
             type="date"
-            className={`${INPUT} pl-4`}
             value={campos.fecha_objetivo}
             disabled={estado === 'guardando'}
             onChange={(e) => actualizarCampo('fecha_objetivo', e.target.value)}
@@ -972,12 +987,11 @@ function NuevaGestionForm({ eventoId, onCreada }) {
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="nueva-horas" className={LABEL}>Horas estimadas</label>
-          <input
+          <InputIcono icon="timer"
             id="nueva-horas"
             type="number"
             min="0.5"
             step="0.5"
-            className={`${INPUT} pl-4`}
             value={campos.horas_estimadas}
             disabled={estado === 'guardando'}
             onChange={(e) => actualizarCampo('horas_estimadas', e.target.value)}
