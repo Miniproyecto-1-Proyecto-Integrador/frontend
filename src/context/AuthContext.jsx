@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { login as apiLogin, me, tokens } from '../services/auth';
+import { login as apiLogin, register as apiRegister, me, tokens } from '../services/auth';
 
 const AuthContext = createContext(null);
 
@@ -42,6 +42,21 @@ export function AuthProvider({ children }) {
     setStatus('authed');
   }, []);
 
+  const register = useCallback(async ({ username, email, password }) => {
+  await apiRegister({ username, email, password });
+
+  try {
+    const data = await apiLogin(username, password);
+    setUser(data);
+    setStatus('authed');
+  } catch (err) {
+  
+    err.registroCreado = true;
+    throw err;
+  }
+}, []);
+
+
   const logout = useCallback(() => {
     tokens.clear();
     setUser(null);
@@ -49,7 +64,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, status, login, logout }}>
+    <AuthContext.Provider value={{ user, status, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

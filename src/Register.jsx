@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   BOTON_PRINCIPAL,
   CARD_HEADER_ICON,
+  ERROR,
   FONT_HEADLINE,
   INPUT,
   INPUT_ICON,
@@ -19,49 +20,84 @@ const BENEFICIOS = [
   { icon: 'today', texto: 'Ten claro qué hacer primero cada día' },
 ];
 
-export default function Login() {
-  const { status, login } = useAuth();
+// Orden en el que se enfoca el primer campo con error.
+const CAMPOS = ['username', 'email', 'password'];
+
+export default function Register() {
+  const { status, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const destino = location.state?.from?.pathname || '/hoy';
 
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [verPassword, setVerPassword] = useState(false);
   const [enviando, setEnviando] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState(null);
+  const [cuentaCreada, setCuentaCreada] = useState(false);
 
   const headingRef = useRef(null);
-  const usernameRef = useRef(null);
 
   useEffect(() => {
+    document.title = 'Crear cuenta · Planify';
     headingRef.current?.focus();
   }, []);
 
   if (status === 'authed') return <Navigate to={destino} replace />;
 
+  function limpiarCampo(campo) {
+    setFieldErrors((prev) => {
+      if (!prev[campo]) return prev;
+      const copia = { ...prev };
+      delete copia[campo];
+      return copia;
+    });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setEnviando(true);
     setError(null);
+    setFieldErrors({});
+    setCuentaCreada(false);
     try {
-      await login(username.trim(), password);
+      // Toda la validación la hace el backend; aquí solo se muestran sus mensajes.
+      await register({ username: username.trim(), email: email.trim(), password });
       navigate(destino, { replace: true });
     } catch (err) {
-      setError(esFalloDeRed(err) ? MENSAJE_ERROR_RED : err.message);
-      usernameRef.current?.focus();
+      if (err.registroCreado) {
+        // La cuenta sí se creó; solo falló el inicio de sesión automático.
+        setCuentaCreada(true);
+      } else if (esFalloDeRed(err)) {
+        setError(MENSAJE_ERROR_RED);
+      } else {
+        const errores = err.fieldErrors || {};
+        const campoConError = CAMPOS.find((c) => errores[c]);
+        if (campoConError) {
+          setFieldErrors(errores);
+          document.getElementById(`reg-${campoConError}`)?.focus();
+        } else {
+          setError(err.message);
+        }
+      }
     } finally {
       setEnviando(false);
     }
   }
 
-  const describedBy = error ? 'login-error' : undefined;
+  // aria-describedby: primero la ayuda del campo y, si hay, su error.
+  function describedBy(campo, conAyuda) {
+    const ids = [];
+    if (conAyuda) ids.push(`reg-ayuda-${campo}`);
+    if (fieldErrors[campo]) ids.push(`reg-error-${campo}`);
+    return ids.length ? ids.join(' ') : undefined;
+  }
 
   return (
-    // Un tercio para el panel morado y dos tercios para el formulario.
-    <div className="min-h-screen bg-[#faf8ff] text-[#181b27] lg:grid lg:grid-cols-[1fr_2fr]">
-      {/* Panel morado: solo desktop y solo decorativo, por eso aria-hidden:
-          el lector de pantalla lo salta y va directo al formulario. */}
+    <div className="min-h-dvh bg-[#faf8ff] text-[#181b27] lg:grid lg:grid-cols-[1fr_2fr]">
+      {/* Panel morado: solo desktop y decorativo; el lector de pantalla lo salta. */}
       <aside
         aria-hidden="true"
         className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#3d3163] via-[#524177] to-[#63518b] p-10 text-white"
@@ -83,7 +119,7 @@ export default function Login() {
 
         <div className="relative flex flex-col gap-8">
           <p className={`${FONT_HEADLINE} text-3xl font-extrabold leading-tight tracking-tight`}>
-            Tus eventos, <br /> bajo control.
+            Empieza a <br /> organizar.
           </p>
           <ul className="flex flex-col gap-4">
             {BENEFICIOS.map((b) => (
@@ -100,8 +136,8 @@ export default function Login() {
         <p className="relative text-xs text-white/70">Organizador de eventos</p>
       </aside>
 
-      {/* Columna del formulario, con manchas de color suaves detrás */}
-      <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      {/* Columna del formulario */}
+      <div className="relative flex min-h-dvh items-center justify-center overflow-hidden px-4 py-10">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           <div className="absolute -top-20 -right-16 h-64 w-64 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-70 blur-2xl" />
           <div className="absolute -bottom-24 -left-10 h-72 w-72 rounded-full bg-gradient-to-tr from-[#eaddff] to-transparent opacity-70 blur-2xl lg:hidden" />
@@ -111,7 +147,7 @@ export default function Login() {
           <form
             onSubmit={handleSubmit}
             noValidate
-            className="relative flex flex-col gap-6 overflow-hidden rounded-2xl border border-[#e5e7f8] bg-white p-6 pt-8 shadow-[0_8px_30px_-8px_rgba(99,81,139,0.25)] sm:p-8 sm:pt-10"
+            className="relative flex flex-col gap-5 overflow-hidden rounded-2xl border border-[#e5e7f8] bg-white p-6 pt-8 shadow-[0_8px_30px_-8px_rgba(99,81,139,0.25)] sm:p-8 sm:pt-10"
           >
             {/* Línea morada superior */}
             <div
@@ -121,7 +157,7 @@ export default function Login() {
 
             <div className="flex items-center gap-3">
               <div className={CARD_HEADER_ICON}>
-                <span className="material-symbols-outlined text-[24px]" aria-hidden="true">auto_schedule</span>
+                <span className="material-symbols-outlined text-[24px]" aria-hidden="true">person_add</span>
               </div>
               <div className="flex flex-col">
                 <h1
@@ -129,15 +165,14 @@ export default function Login() {
                   tabIndex={-1}
                   className={`${FONT_HEADLINE} text-2xl font-extrabold tracking-tight focus:outline-none`}
                 >
-                  Iniciar sesión
+                  Crear cuenta
                 </h1>
-                <p className="text-sm text-[#49454f]">Ingresa a Planify con tu correo o usuario.</p>
+                <p className="text-sm text-[#49454f]">Regístrate para organizar tus eventos.</p>
               </div>
             </div>
 
             {error && (
               <div
-                id="login-error"
                 role="alert"
                 className="flex items-start gap-2 rounded-xl border border-[#ba1a1a]/30 bg-[#ffdad6] px-4 py-3 text-sm text-[#93000a]"
               >
@@ -146,38 +181,77 @@ export default function Login() {
               </div>
             )}
 
+            {cuentaCreada && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 rounded-xl border border-[#1e5a34]/30 bg-[#eaf7ee] px-4 py-3 text-sm text-[#1e5a34]"
+              >
+                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">task_alt</span>
+                <span>
+                  Tu cuenta se creó, pero no pudimos iniciar sesión automáticamente.{' '}
+                  <Link to="/login" className="font-bold underline">Ve a iniciar sesión</Link>.
+                </span>
+              </div>
+            )}
+
             <div>
-              <label htmlFor="login-username" className={LABEL}>Correo o usuario</label>
+              <label htmlFor="reg-username" className={LABEL}>Nombre de usuario</label>
               <div className={INPUT_WRAP}>
                 <span className={INPUT_ICON} aria-hidden="true">person</span>
                 <input
-                  id="login-username"
-                  ref={usernameRef}
+                  id="reg-username"
                   type="text"
                   autoComplete="username"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className={INPUT}
-                  aria-invalid={error ? 'true' : undefined}
-                  aria-describedby={describedBy}
+                  onChange={(e) => { setUsername(e.target.value); limpiarCampo('username'); }}
+                  className={`${INPUT} text-base! sm:text-sm!`}
+                  aria-invalid={fieldErrors.username ? 'true' : undefined}
+                  aria-describedby={describedBy('username', true)}
                   required
                 />
               </div>
+              <p id="reg-ayuda-username" className="mt-1.5 text-xs text-[#49454f]">
+                Solo letras, números y los símbolos @ . + - _ (sin espacios).
+              </p>
+              {fieldErrors.username && (
+                <p id="reg-error-username" className={ERROR} role="alert">{fieldErrors.username[0]}</p>
+              )}
             </div>
 
             <div>
-              <label htmlFor="login-password" className={LABEL}>Contraseña</label>
+              <label htmlFor="reg-email" className={LABEL}>Correo electrónico</label>
+              <div className={INPUT_WRAP}>
+                <span className={INPUT_ICON} aria-hidden="true">mail</span>
+                <input
+                  id="reg-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); limpiarCampo('email'); }}
+                  className={`${INPUT} text-base! sm:text-sm!`}
+                  aria-invalid={fieldErrors.email ? 'true' : undefined}
+                  aria-describedby={describedBy('email', false)}
+                  required
+                />
+              </div>
+              {fieldErrors.email && (
+                <p id="reg-error-email" className={ERROR} role="alert">{fieldErrors.email[0]}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="reg-password" className={LABEL}>Contraseña</label>
               <div className={INPUT_WRAP}>
                 <span className={INPUT_ICON} aria-hidden="true">lock</span>
                 <input
-                  id="login-password"
+                  id="reg-password"
                   type={verPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className={`${INPUT} pr-12!`}
-                  aria-invalid={error ? 'true' : undefined}
-                  aria-describedby={describedBy}
+                  onChange={(e) => { setPassword(e.target.value); limpiarCampo('password'); }}
+                  className={`${INPUT} pr-12! text-base! sm:text-sm!`}
+                  aria-invalid={fieldErrors.password ? 'true' : undefined}
+                  aria-describedby={describedBy('password', true)}
                   required
                 />
                 <button
@@ -185,33 +259,34 @@ export default function Login() {
                   onClick={() => setVerPassword((v) => !v)}
                   aria-label={verPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   aria-pressed={verPassword}
-                  className="absolute right-2 flex h-8 w-8 items-center justify-center rounded-lg text-[#49454f] transition-colors hover:bg-[#f2f3ff] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]"
+                  className="absolute right-1 flex h-10 w-10 items-center justify-center rounded-lg text-[#49454f] transition-colors hover:bg-[#f2f3ff] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]"
                 >
                   <span className="material-symbols-outlined text-[20px]" aria-hidden="true">
                     {verPassword ? 'visibility_off' : 'visibility'}
                   </span>
                 </button>
               </div>
+              <p id="reg-ayuda-password" className="mt-1.5 text-xs text-[#49454f]">
+                Mínimo 8 caracteres.
+              </p>
+              {fieldErrors.password && (
+                <p id="reg-error-password" className={ERROR} role="alert">{fieldErrors.password[0]}</p>
+              )}
             </div>
 
-            <button
-              type="submit"
-              className={BOTON_PRINCIPAL}
-              disabled={enviando || !username.trim() || !password}
-            >
-              {enviando ? 'Ingresando…' : 'Ingresar'}
+            <button type="submit" className={BOTON_PRINCIPAL} disabled={enviando}>
+              {enviando ? 'Creando cuenta…' : 'Crear cuenta'}
             </button>
-            
+
             <p className="text-center text-sm text-[#49454f]">
-              ¿No tienes cuenta?{' '}
+              ¿Ya tienes cuenta?{' '}
               <Link
-                to="/register"
-                state={location.state}
-                className="rounded font-bold text-[#63518b] underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]">
-                Crear cuenta
+                to="/login"
+                className="rounded font-bold text-[#63518b] underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]"
+              >
+                Inicia sesión
               </Link>
             </p>
-
           </form>
         </main>
       </div>
