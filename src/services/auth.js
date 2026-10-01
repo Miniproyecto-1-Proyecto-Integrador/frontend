@@ -92,8 +92,11 @@ export async function authFetch(url, options = {}) {
     await renovar();
   } catch (err) {
     // Solo 401/400 significan "el refresh ya no sirve". Un fallo de red no cierra sesión.
-    if (err.status === 401 || err.status === 400) sesionExpirada();
-    return res;
+    if (err.status === 401 || err.status === 400) {
+      sesionExpirada();
+      return res;}
+
+    throw err;
   }
 
   const reintento = await enviar();
