@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/hoy', label: 'Hoy', icon: 'today' },
   { to: '/crear', label: 'Crear Evento', icon: 'add_circle' },
   { to: '/evento', label: 'Mis Eventos', icon: 'event_available' },
+  { to: '/configuracion', label: 'Configuración', icon: 'settings' },
   { label: 'Progreso y Métricas', icon: 'query_stats', disabled: true },
 ];
 

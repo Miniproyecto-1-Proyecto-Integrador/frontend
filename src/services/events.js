@@ -122,3 +122,18 @@ export function getHoy({ estado, evento } = {}) {
   const query = params.toString();
   return request(`/hoy/${query ? `?${query}` : ''}`);
 }
+
+// -------------------- Límite diario --------------------
+
+/** GET /limite-diario/ — obtiene el límite diario del organizador */
+export function getLimiteDiario() {
+  return request('/limite-diario/');
+}
+
+/** PUT /limite-diario/ — actualiza el límite diario del organizador */
+export function updateLimiteDiario(horas) {
+  return request('/limite-diario/', {
+    method: 'PUT',
+    body: JSON.stringify({ horas }),
+  });
+}
