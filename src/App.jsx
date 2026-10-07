@@ -7,6 +7,7 @@ import Hoy from './Hoy';
 import Login from './Login';
 import MisEventos from './MisEventos';
 import Register from './Register';
+import Configuracion from './Configuracion';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/evento/:id" element={<DetalleEvento />} />
           <Route path="/evento" element={<MisEventos />} />
           <Route path="/hoy" element={<Hoy />} />
+          <Route path="/configuracion" element={<Configuracion />} />
 
         </Route>
       </Route>

@@ -33,6 +33,8 @@ async function request(path, options = {}) {
     );
     error.status = response.status;
     error.fieldErrors = data && !data.detail ? data : {};
+    error.data = data;
+    error.conflicto = data?.conflicto ?? null;
     throw error;
   }
 
@@ -121,4 +123,19 @@ export function getHoy({ estado, evento } = {}) {
   if (evento) params.set('evento', evento);
   const query = params.toString();
   return request(`/hoy/${query ? `?${query}` : ''}`);
+}
+
+// -------------------- Límite diario --------------------
+
+/** GET /limite-diario/ — obtiene el límite diario del organizador */
+export function getLimiteDiario() {
+  return request('/limite-diario/');
+}
+
+/** PUT /limite-diario/ — actualiza el límite diario del organizador */
+export function updateLimiteDiario(horas) {
+  return request('/limite-diario/', {
+    method: 'PUT',
+    body: JSON.stringify({ horas }),
+  });
 }

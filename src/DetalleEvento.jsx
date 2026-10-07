@@ -605,6 +605,15 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [confirmando, setConfirmando] = useState(false);
   const [estado, setEstado] = useState('idle');
   const [errorField, setErrorField] = useState(null);
+  const [conflicto, setConflicto] = useState(null);
+
+  const [reprogramando, setReprogramando] = useState(false);
+  const [fechaReprogramada, setFechaReprogramada] = useState(subtarea.fecha_objetivo);
+  const [errorReprogramacion, setErrorReprogramacion] = useState(null);
+
+  const reprogramarBtnRef = useRef(null);
+  const reprogramarHeadingRef = useRef(null);
+  const reprogramarDialogRef = useRef(null);
 
   const [titulo, setTitulo] = useState(subtarea.titulo);
   const [fechaObjetivo, setFechaObjetivo] = useState(subtarea.fecha_objetivo);
@@ -614,6 +623,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const eliminarBtnRef = useRef(null);
   const confirmarHeadingRef = useRef(null);
   const confirmarDialogRef = useRef(null);
+  const conflictoDialogRef = useRef(null);
+  const conflictoHeadingRef = useRef(null);
 
   useEffect(() => {
     if (modo === 'editar') focusField(`sub-titulo-${subtarea.id}`);
@@ -623,12 +634,35 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     if (confirmando) confirmarHeadingRef.current?.focus();
   }, [confirmando]);
 
+  useEffect(() => {
+    if (reprogramando) {
+      reprogramarHeadingRef.current?.focus();
+    }
+  }, [reprogramando]);
+
+  useEffect(() => {
+  if (conflicto) {
+    conflictoHeadingRef.current?.focus();
+  }
+}, [conflicto]);
+
   useEscapeToClose(confirmando, () => {
     setConfirmando(false);
     eliminarBtnRef.current?.focus();
   });
 
+  useEscapeToClose(reprogramando, cerrarReprogramacion);
+
+  useEscapeToClose(conflicto, () => {
+  setConflicto(null);
+  editarBtnRef.current?.focus();
+  });
+
   useFocusTrap(confirmando, confirmarDialogRef);
+
+  useFocusTrap(reprogramando, reprogramarDialogRef);
+
+  useFocusTrap(conflicto, conflictoDialogRef);
 
   function cancelar() {
     setTitulo(subtarea.titulo);
@@ -639,16 +673,70 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     editarBtnRef.current?.focus();
   }
 
-  async function guardar(e) {
+    function abrirReprogramacion() {
+    setFechaReprogramada(subtarea.fecha_objetivo);
+    setErrorReprogramacion(null);
+    setReprogramando(true);
+  }
+
+  function cerrarReprogramacion() {
+    if (estado === 'reprogramando') return;
+
+    setReprogramando(false);
+    setErrorReprogramacion(null);
+    reprogramarBtnRef.current?.focus();
+  }
+
+  async function guardarReprogramacion(e) {
     e.preventDefault();
+
+    setEstado('reprogramando');
+    setErrorReprogramacion(null);
+
+    try {
+      const actualizada = await updateSubtask(eventoId, subtarea.id, {
+        fecha_objetivo: fechaReprogramada,
+      });
+
+      onGuardada(actualizada);
+      setEstado('idle');
+      setReprogramando(false);
+
+      onFeedback({
+        titulo: 'Gestión reprogramada',
+        mensaje: 'La nueva fecha se guardó correctamente.',
+        focoRef: reprogramarBtnRef,
+      });
+    } catch (err) {
+      setEstado('idle');
+
+      const fe = err.fieldErrors || {};
+
+      if (fe.fecha_objetivo?.[0]) {
+        setErrorReprogramacion(fe.fecha_objetivo[0]);
+      } else {
+        setErrorReprogramacion(
+          mensajeError(err, 'No pudimos reprogramar la gestión. Inténtalo de nuevo.')
+        );
+      }
+
+      reprogramarHeadingRef.current?.focus();
+    }
+  }
+
+  async function guardar(e, horasOverride = null) {
+    e?.preventDefault();
 
     setEstado('guardando');
     setErrorField(null);
+
+    const horasAguardar = horasOverride ?? horasEstimadas;
+
     try {
       const actualizada = await updateSubtask(eventoId, subtarea.id, {
         titulo: titulo.trim(),
         fecha_objetivo: fechaObjetivo,
-        horas_estimadas: horasEstimadas,
+        horas_estimadas: horasAguardar,
       });
       onGuardada(actualizada);
       setEstado('idle');
@@ -659,6 +747,13 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         focoRef: editarBtnRef,
       });
     } catch (err) {
+      if (err.status === 409 && err.conflicto) {
+        setEstado('idle');
+        setErrorField(null);
+        setConflicto(err.conflicto);
+        return;
+      }
+
       setEstado('error');
       const fe = err.fieldErrors || {};
       let campo = null;
@@ -677,6 +772,19 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         });
       }
     }
+  }
+
+  async function resolverReduciendoHoras() {
+    const horasDisponibles = Number(conflicto?.horas_disponibles);
+
+    if (!conflicto || !Number.isFinite(horasDisponibles) || horasDisponibles <= 0) {
+      return;
+    }
+
+    setHorasEstimadas(horasDisponibles.toString());
+    setConflicto(null);
+
+    await guardar(null, horasDisponibles);
   }
 
   async function confirmarEliminar() {
@@ -719,7 +827,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           </span>
         </p>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <button
             ref={editarBtnRef}
             type="button"
@@ -729,6 +837,17 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           >
             Editar
           </button>
+
+          <button
+            ref={reprogramarBtnRef}
+            type="button"
+            className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
+            onClick={abrirReprogramacion}
+            aria-label={`Reprogramar gestión: ${subtarea.titulo}`}
+          >
+            Reprogramar
+          </button>
+
           {!confirmando && (
             <button
               ref={eliminarBtnRef}
@@ -777,6 +896,86 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
                 {estado === 'eliminando' ? 'Eliminando…' : 'Sí, eliminar'}
               </button>
             </div>
+          </div>
+        )}
+
+        {reprogramando && (
+          <div
+            ref={reprogramarDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`reprogramar-heading-${subtarea.id}`}
+            className="p-4 rounded-xl border border-[#e5e7f8] bg-white shadow-sm"
+          >
+            <h3
+              id={`reprogramar-heading-${subtarea.id}`}
+              ref={reprogramarHeadingRef}
+              tabIndex={-1}
+              className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+            >
+              Reprogramar gestión
+            </h3>
+
+            <form onSubmit={guardarReprogramacion} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor={`reprogramar-fecha-${subtarea.id}`}
+                  className={LABEL}
+                >
+                  Nueva fecha objetivo
+                </label>
+
+                <InputIcono
+                  icon="calendar_month"
+                  id={`reprogramar-fecha-${subtarea.id}`}
+                  type="date"
+                  value={fechaReprogramada}
+                  disabled={estado === 'reprogramando'}
+                  onChange={(e) => {
+                    setFechaReprogramada(e.target.value);
+                    setErrorReprogramacion(null);
+                  }}
+                  aria-invalid={Boolean(errorReprogramacion)}
+                  aria-describedby={
+                    errorReprogramacion
+                      ? `reprogramar-error-${subtarea.id}`
+                      : undefined
+                  }
+                />
+
+                {errorReprogramacion && (
+                  <p
+                    id={`reprogramar-error-${subtarea.id}`}
+                    className={ERROR}
+                    role="alert"
+                  >
+                    {errorReprogramacion}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  disabled={estado === 'reprogramando'}
+                  aria-live="polite"
+                >
+                  {estado === 'reprogramando'
+                    ? 'Reprogramando…'
+                    : 'Reprogramar'}
+                </button>
+
+                <button
+                  type="button"
+                  className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                  onClick={cerrarReprogramacion}
+                  disabled={estado === 'reprogramando'}
+                >
+                  Cancelar
+                </button>
+              </div>       
+            </form>
           </div>
         )}
       </div>
@@ -835,6 +1034,92 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           Cancelar
         </button>
       </div>
+      {conflicto && (
+        <div
+          ref={conflictoDialogRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={`conflicto-heading-${subtarea.id}`}
+          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
+        >
+          <h3
+            id={`conflicto-heading-${subtarea.id}`}
+            ref={conflictoHeadingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+          >
+            Hay un conflicto de planificación
+          </h3>
+
+          <p className="text-sm text-[#181b27] mb-3">
+            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <strong>{conflicto.fecha}</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <strong>{conflicto.horas_ya_planificadas} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <strong>{conflicto.horas_gestion} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <strong>{conflicto.horas_total} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <strong>{conflicto.limite_diario} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
+              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
+              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#7a7580]">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex gap-3 flex-wrap">
+              <button
+                type="button"
+                className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                onClick={resolverReduciendoHoras}
+                disabled={estado === 'guardando'}
+              >
+                Reducir a {conflicto.horas_disponibles} h y guardar
+              </button>
+
+              <button
+                type="button"
+                className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                onClick={() => {
+                  setConflicto(null);
+                  document
+                    .getElementById(`sub-horas-${subtarea.id}`)
+                    ?.focus();
+                }}
+              >
+                Volver a editar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
