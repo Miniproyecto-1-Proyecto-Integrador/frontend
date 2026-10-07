@@ -33,6 +33,8 @@ async function request(path, options = {}) {
     );
     error.status = response.status;
     error.fieldErrors = data && !data.detail ? data : {};
+    error.data = data;
+    error.conflicto = data?.conflicto ?? null;
     throw error;
   }
 

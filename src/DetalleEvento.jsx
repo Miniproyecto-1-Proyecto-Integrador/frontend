@@ -605,6 +605,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [confirmando, setConfirmando] = useState(false);
   const [estado, setEstado] = useState('idle');
   const [errorField, setErrorField] = useState(null);
+  const [conflicto, setConflicto] = useState(null);
 
   const [reprogramando, setReprogramando] = useState(false);
   const [fechaReprogramada, setFechaReprogramada] = useState(subtarea.fecha_objetivo);
@@ -622,6 +623,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const eliminarBtnRef = useRef(null);
   const confirmarHeadingRef = useRef(null);
   const confirmarDialogRef = useRef(null);
+  const conflictoDialogRef = useRef(null);
+  const conflictoHeadingRef = useRef(null);
 
   useEffect(() => {
     if (modo === 'editar') focusField(`sub-titulo-${subtarea.id}`);
@@ -637,6 +640,12 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     }
   }, [reprogramando]);
 
+  useEffect(() => {
+  if (conflicto) {
+    conflictoHeadingRef.current?.focus();
+  }
+}, [conflicto]);
+
   useEscapeToClose(confirmando, () => {
     setConfirmando(false);
     eliminarBtnRef.current?.focus();
@@ -644,9 +653,16 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
   useEscapeToClose(reprogramando, cerrarReprogramacion);
 
+  useEscapeToClose(conflicto, () => {
+  setConflicto(null);
+  editarBtnRef.current?.focus();
+  });
+
   useFocusTrap(confirmando, confirmarDialogRef);
 
   useFocusTrap(reprogramando, reprogramarDialogRef);
+
+  useFocusTrap(conflicto, conflictoDialogRef);
 
   function cancelar() {
     setTitulo(subtarea.titulo);
@@ -728,6 +744,13 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         focoRef: editarBtnRef,
       });
     } catch (err) {
+      if (err.status === 409 && err.conflicto) {
+        setEstado('idle');
+        setErrorField(null);
+        setConflicto(err.conflicto);
+        return;
+      }
+
       setEstado('error');
       const fe = err.fieldErrors || {};
       let campo = null;
@@ -935,7 +958,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
                 >
                   Cancelar
                 </button>
-              </div>
+              </div>       
             </form>
           </div>
         )}
@@ -995,6 +1018,79 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           Cancelar
         </button>
       </div>
+      {conflicto && (
+        <div
+          ref={conflictoDialogRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={`conflicto-heading-${subtarea.id}`}
+          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
+        >
+          <h3
+            id={`conflicto-heading-${subtarea.id}`}
+            ref={conflictoHeadingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+          >
+            Hay un conflicto de planificación
+          </h3>
+
+          <p className="text-sm text-[#181b27] mb-3">
+            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <strong>{conflicto.fecha}</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <strong>{conflicto.horas_ya_planificadas} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <strong>{conflicto.horas_gestion} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <strong>{conflicto.horas_total} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <strong>{conflicto.limite_diario} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
+              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
+              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#7a7580]">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+              onClick={() => {
+                setConflicto(null);
+                editarBtnRef.current?.focus();
+              }}
+            >
+              Volver a editar
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
