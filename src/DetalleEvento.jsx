@@ -724,16 +724,19 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     }
   }
 
-  async function guardar(e) {
-    e.preventDefault();
+  async function guardar(e, horasOverride = null) {
+    e?.preventDefault();
 
     setEstado('guardando');
     setErrorField(null);
+
+    const horasAguardar = horasOverride ?? horasEstimadas;
+
     try {
       const actualizada = await updateSubtask(eventoId, subtarea.id, {
         titulo: titulo.trim(),
         fecha_objetivo: fechaObjetivo,
-        horas_estimadas: horasEstimadas,
+        horas_estimadas: horasAguardar,
       });
       onGuardada(actualizada);
       setEstado('idle');
@@ -769,6 +772,19 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         });
       }
     }
+  }
+
+  async function resolverReduciendoHoras() {
+    const horasDisponibles = Number(conflicto?.horas_disponibles);
+
+    if (!conflicto || !Number.isFinite(horasDisponibles) || horasDisponibles <= 0) {
+      return;
+    }
+
+    setHorasEstimadas(horasDisponibles.toString());
+    setConflicto(null);
+
+    await guardar(null, horasDisponibles);
   }
 
   async function confirmarEliminar() {
@@ -1078,16 +1094,29 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           </div>
 
           <div className="mt-4">
-            <button
-              type="button"
-              className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
-              onClick={() => {
-                setConflicto(null);
-                editarBtnRef.current?.focus();
-              }}
-            >
-              Volver a editar
-            </button>
+            <div className="flex gap-3 flex-wrap">
+              <button
+                type="button"
+                className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                onClick={resolverReduciendoHoras}
+                disabled={estado === 'guardando'}
+              >
+                Reducir a {conflicto.horas_disponibles} h y guardar
+              </button>
+
+              <button
+                type="button"
+                className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                onClick={() => {
+                  setConflicto(null);
+                  document
+                    .getElementById(`sub-horas-${subtarea.id}`)
+                    ?.focus();
+                }}
+              >
+                Volver a editar
+              </button>
+            </div>
           </div>
         </div>
       )}
