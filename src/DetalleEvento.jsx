@@ -606,6 +606,14 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [estado, setEstado] = useState('idle');
   const [errorField, setErrorField] = useState(null);
 
+  const [reprogramando, setReprogramando] = useState(false);
+  const [fechaReprogramada, setFechaReprogramada] = useState(subtarea.fecha_objetivo);
+  const [errorReprogramacion, setErrorReprogramacion] = useState(null);
+
+  const reprogramarBtnRef = useRef(null);
+  const reprogramarHeadingRef = useRef(null);
+  const reprogramarDialogRef = useRef(null);
+
   const [titulo, setTitulo] = useState(subtarea.titulo);
   const [fechaObjetivo, setFechaObjetivo] = useState(subtarea.fecha_objetivo);
   const [horasEstimadas, setHorasEstimadas] = useState(subtarea.horas_estimadas);
@@ -623,12 +631,22 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     if (confirmando) confirmarHeadingRef.current?.focus();
   }, [confirmando]);
 
+  useEffect(() => {
+    if (reprogramando) {
+      reprogramarHeadingRef.current?.focus();
+    }
+  }, [reprogramando]);
+
   useEscapeToClose(confirmando, () => {
     setConfirmando(false);
     eliminarBtnRef.current?.focus();
   });
 
+  useEscapeToClose(reprogramando, cerrarReprogramacion);
+
   useFocusTrap(confirmando, confirmarDialogRef);
+
+  useFocusTrap(reprogramando, reprogramarDialogRef);
 
   function cancelar() {
     setTitulo(subtarea.titulo);
@@ -637,6 +655,57 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     setErrorField(null);
     setModo('ver');
     editarBtnRef.current?.focus();
+  }
+
+    function abrirReprogramacion() {
+    setFechaReprogramada(subtarea.fecha_objetivo);
+    setErrorReprogramacion(null);
+    setReprogramando(true);
+  }
+
+  function cerrarReprogramacion() {
+    if (estado === 'reprogramando') return;
+
+    setReprogramando(false);
+    setErrorReprogramacion(null);
+    reprogramarBtnRef.current?.focus();
+  }
+
+  async function guardarReprogramacion(e) {
+    e.preventDefault();
+
+    setEstado('reprogramando');
+    setErrorReprogramacion(null);
+
+    try {
+      const actualizada = await updateSubtask(eventoId, subtarea.id, {
+        fecha_objetivo: fechaReprogramada,
+      });
+
+      onGuardada(actualizada);
+      setEstado('idle');
+      setReprogramando(false);
+
+      onFeedback({
+        titulo: 'Gestión reprogramada',
+        mensaje: 'La nueva fecha se guardó correctamente.',
+        focoRef: reprogramarBtnRef,
+      });
+    } catch (err) {
+      setEstado('idle');
+
+      const fe = err.fieldErrors || {};
+
+      if (fe.fecha_objetivo?.[0]) {
+        setErrorReprogramacion(fe.fecha_objetivo[0]);
+      } else {
+        setErrorReprogramacion(
+          mensajeError(err, 'No pudimos reprogramar la gestión. Inténtalo de nuevo.')
+        );
+      }
+
+      reprogramarHeadingRef.current?.focus();
+    }
   }
 
   async function guardar(e) {
@@ -719,7 +788,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           </span>
         </p>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <button
             ref={editarBtnRef}
             type="button"
@@ -729,6 +798,17 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           >
             Editar
           </button>
+
+          <button
+            ref={reprogramarBtnRef}
+            type="button"
+            className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
+            onClick={abrirReprogramacion}
+            aria-label={`Reprogramar gestión: ${subtarea.titulo}`}
+          >
+            Reprogramar
+          </button>
+
           {!confirmando && (
             <button
               ref={eliminarBtnRef}
@@ -777,6 +857,86 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
                 {estado === 'eliminando' ? 'Eliminando…' : 'Sí, eliminar'}
               </button>
             </div>
+          </div>
+        )}
+
+        {reprogramando && (
+          <div
+            ref={reprogramarDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`reprogramar-heading-${subtarea.id}`}
+            className="p-4 rounded-xl border border-[#e5e7f8] bg-white shadow-sm"
+          >
+            <h3
+              id={`reprogramar-heading-${subtarea.id}`}
+              ref={reprogramarHeadingRef}
+              tabIndex={-1}
+              className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+            >
+              Reprogramar gestión
+            </h3>
+
+            <form onSubmit={guardarReprogramacion} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor={`reprogramar-fecha-${subtarea.id}`}
+                  className={LABEL}
+                >
+                  Nueva fecha objetivo
+                </label>
+
+                <InputIcono
+                  icon="calendar_month"
+                  id={`reprogramar-fecha-${subtarea.id}`}
+                  type="date"
+                  value={fechaReprogramada}
+                  disabled={estado === 'reprogramando'}
+                  onChange={(e) => {
+                    setFechaReprogramada(e.target.value);
+                    setErrorReprogramacion(null);
+                  }}
+                  aria-invalid={Boolean(errorReprogramacion)}
+                  aria-describedby={
+                    errorReprogramacion
+                      ? `reprogramar-error-${subtarea.id}`
+                      : undefined
+                  }
+                />
+
+                {errorReprogramacion && (
+                  <p
+                    id={`reprogramar-error-${subtarea.id}`}
+                    className={ERROR}
+                    role="alert"
+                  >
+                    {errorReprogramacion}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  disabled={estado === 'reprogramando'}
+                  aria-live="polite"
+                >
+                  {estado === 'reprogramando'
+                    ? 'Reprogramando…'
+                    : 'Reprogramar'}
+                </button>
+
+                <button
+                  type="button"
+                  className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                  onClick={cerrarReprogramacion}
+                  disabled={estado === 'reprogramando'}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>
