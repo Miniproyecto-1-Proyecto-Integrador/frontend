@@ -1177,20 +1177,34 @@ function NuevaGestionForm({ eventoId, onCreada }) {
   const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
   const [ultimaAgregada, setUltimaAgregada] = useState(null);
+  const [conflicto, setConflicto] = useState(null);
 
   const toggleBtnRef = useRef(null);
+  const conflictoDialogRef = useRef(null);
+  const conflictoHeadingRef = useRef(null);
+
+  useEffect(() => {
+    if (conflicto) conflictoHeadingRef.current?.focus();
+  }, [conflicto]);
+
+useFocusTrap(conflicto, conflictoDialogRef);
 
   useEffect(() => {
     if (abierto) focusField('nueva-titulo');
   }, [abierto]);
 
-  useEscapeToClose(abierto, () => {
+  useEscapeToClose(abierto && !conflicto, () => {
     setAbierto(false);
     setCampos(nuevaGestionVacia());
     setError(null);
     setErrorField(null);
     setUltimaAgregada(null);
     toggleBtnRef.current?.focus();
+  });
+
+  useEscapeToClose(conflicto, () => {
+    setConflicto(null);
+    focusField('nueva-horas');
   });
 
   function actualizarCampo(campo, valor) {
@@ -1232,17 +1246,85 @@ function NuevaGestionForm({ eventoId, onCreada }) {
       // gestión sin volver a hacer tab por todo el formulario.
       focusField('nueva-titulo');
     } catch (err) {
+      if (err.status === 409 && err.conflicto) {
+        setEstado('idle');
+        setError(null);
+        setErrorField(null);
+        setConflicto(err.conflicto);
+        return;
+      }
+
       setEstado('error');
       const fe = err.fieldErrors || {};
       let campo = null;
+
       if (fe.titulo) campo = 'titulo';
       else if (fe.fecha_objetivo) campo = 'fecha';
       else if (fe.horas_estimadas) campo = 'horas';
+
+      setErrorField(campo);
+      setError(mensajeError(err, 'No pudimos agregar la gestión.'));
+
+      if (campo) focusField(`nueva-${campo}`);
+    }
+
+  }
+
+  
+  async function resolverReduciendoHoras() {
+    const horasDisponibles = Number(conflicto?.horas_disponibles);
+
+    if (
+      !conflicto ||
+      !Number.isFinite(horasDisponibles) ||
+      horasDisponibles <= 0
+    ) {
+      return;
+    }
+
+    setEstado('guardando');
+    setError(null);
+    setErrorField(null);
+    setConflicto(null);
+
+    try {
+      const creada = await createSubtask(eventoId, {
+        titulo: campos.titulo.trim(),
+        fecha_objetivo: campos.fecha_objetivo,
+        horas_estimadas: horasDisponibles,
+      });
+
+      onCreada(creada);
+      setUltimaAgregada(creada.titulo);
+      setCampos(nuevaGestionVacia());
+      setEstado('idle');
+      focusField('nueva-titulo');
+    } catch (err) {
+      setEstado('idle');
+
+      if (err.status === 409 && err.conflicto) {
+        setConflicto(err.conflicto);
+        return;
+      }
+
+      const fe = err.fieldErrors || {};
+      let campo = null;
+
+      if (fe.titulo) campo = 'titulo';
+      else if (fe.fecha_objetivo) campo = 'fecha';
+      else if (fe.horas_estimadas) campo = 'horas';
+
       setErrorField(campo);
       setError(mensajeError(err, 'No pudimos agregar la gestión.'));
       if (campo) focusField(`nueva-${campo}`);
     }
   }
+
+  function volverAEditar() {
+    setConflicto(null);
+    focusField('nueva-horas');
+  }
+
 
   if (!abierto) {
     return (
@@ -1345,6 +1427,87 @@ function NuevaGestionForm({ eventoId, onCreada }) {
           Cerrar
         </button>
       </div>
+      
+      {conflicto && (
+        <div
+          ref={conflictoDialogRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="conflicto-heading-nueva"
+          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
+        >
+          <h3
+            id="conflicto-heading-nueva"
+            ref={conflictoHeadingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+          >
+            Hay un conflicto de planificación
+          </h3>
+
+          <p className="text-sm text-[#181b27] mb-3">
+            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <strong>{conflicto.fecha}</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <strong>{conflicto.horas_ya_planificadas} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <strong>{conflicto.horas_gestion} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <strong>{conflicto.horas_total} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <strong>{conflicto.limite_diario} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
+              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
+              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#7a7580]">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+          </div>
+
+          <div className="mt-4 flex gap-3 flex-wrap">
+            <button
+              type="button"
+              className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+              onClick={resolverReduciendoHoras}
+              disabled={estado === 'guardando'}
+            >
+              Reducir a {conflicto.horas_disponibles} h y guardar
+            </button>
+
+            <button
+              type="button"
+              className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+              onClick={volverAEditar}
+              disabled={estado === 'guardando'}
+            >
+              Volver a editar
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
