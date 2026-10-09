@@ -609,6 +609,10 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [errorMensaje, setErrorMensaje] = useState('');
   const [conflicto, setConflicto] = useState(null);
 
+  const [buscandoFecha, setBuscandoFecha] = useState(false);
+  const [fechaPropuesta, setFechaPropuesta] = useState(null);
+  const [errorFechaPropuesta, setErrorFechaPropuesta] = useState(null);
+
   const [reprogramando, setReprogramando] = useState(false);
   const [fechaReprogramada, setFechaReprogramada] = useState(subtarea.fecha_objetivo);
   const [errorReprogramacion, setErrorReprogramacion] = useState(null);
@@ -723,6 +727,87 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       }
 
       reprogramarHeadingRef.current?.focus();
+    }
+  }
+
+
+  async function buscarProximaFecha() {
+    if (!conflicto || !fechaObjetivo || !horasEstimadas) {
+      return;
+    }
+
+    setBuscandoFecha(true);
+    setErrorFechaPropuesta(null);
+    setFechaPropuesta(null);
+
+    try {
+      const resultado = await getProximaFechaDisponible(
+        eventoId,
+        fechaObjetivo,
+        horasEstimadas,
+        subtarea.id
+      );
+
+      if (resultado.disponible && resultado.fecha) {
+        setFechaPropuesta(resultado.fecha);
+      } else {
+        setErrorFechaPropuesta(
+          resultado.mensaje ||
+            'No encontramos una fecha disponible antes del evento.'
+        );
+      }
+    } catch (err) {
+      setErrorFechaPropuesta(
+        mensajeError(err, 'No pudimos buscar una fecha disponible.')
+      );
+    } finally {
+      setBuscandoFecha(false);
+    }
+  }
+
+  async function guardarConFechaPropuesta() {
+    if (!fechaPropuesta) return;
+
+    setFechaObjetivo(fechaPropuesta);
+    setEstado('guardando');
+    setErrorField(null);
+    setErrorMensaje('');
+
+    try {
+      const actualizada = await updateSubtask(eventoId, subtarea.id, {
+        titulo: titulo.trim(),
+        fecha_objetivo: fechaPropuesta,
+        horas_estimadas: horasEstimadas,
+      });
+
+      onGuardada(actualizada);
+      setEstado('idle');
+      setConflicto(null);
+      setFechaPropuesta(null);
+      setErrorFechaPropuesta(null);
+      setModo('ver');
+
+      onFeedback({
+        titulo: 'Gestión editada',
+        mensaje: 'Los cambios se guardaron correctamente.',
+        focoRef: editarBtnRef,
+      });
+    } catch (err) {
+      setEstado('idle');
+
+      if (err.status === 409 && err.conflicto) {
+        setConflicto(err.conflicto);
+        setFechaPropuesta(null);
+        setErrorFechaPropuesta(null);
+        return;
+      }
+
+      onFeedback({
+        variant: 'error',
+        titulo: 'No pudimos guardar la gestión',
+        mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+        focoRef: editarBtnRef,
+      });
     }
   }
 
@@ -1127,29 +1212,78 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           </div>
 
           <div className="mt-4">
+            <p className="text-xs text-[#7a7580] mb-3">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+
             <div className="flex gap-3 flex-wrap">
-              <button
-                type="button"
-                className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
-                onClick={resolverReduciendoHoras}
-                disabled={estado === 'guardando'}
-              >
-                Reducir a {conflicto.horas_disponibles} h y guardar
-              </button>
+              {Number(conflicto.horas_disponibles) > 0 ? (
+                <button
+                  type="button"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  onClick={resolverReduciendoHoras}
+                  disabled={estado === 'guardando'}
+                >
+                  Reducir a {conflicto.horas_disponibles} h y guardar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  onClick={buscarProximaFecha}
+                  disabled={estado === 'guardando' || buscandoFecha}
+                >
+                  {buscandoFecha
+                    ? 'Buscando fecha…'
+                    : 'Mover a la próxima fecha disponible'}
+                </button>
+              )}
 
               <button
                 type="button"
                 className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
                 onClick={() => {
                   setConflicto(null);
+                  setFechaPropuesta(null);
+                  setErrorFechaPropuesta(null);
                   document
-                    .getElementById(`sub-horas-${subtarea.id}`)
+                    .getElementById(`sub-fecha-${subtarea.id}`)
                     ?.focus();
                 }}
+                disabled={estado === 'guardando'}
               >
                 Volver a editar
               </button>
             </div>
+
+            {fechaPropuesta && (
+              <div className="mt-3 rounded-lg border border-[#e5e7f8] bg-white p-3">
+                <p className="text-sm text-[#181b27]">
+                  Próxima fecha disponible:
+                  <strong className="ml-1">{fechaPropuesta}</strong>
+                </p>
+                <p className="mt-1 text-xs text-[#7a7580]">
+                  Revisa la fecha antes de confirmar el cambio.
+                </p>
+              </div>
+            )}
+
+            {fechaPropuesta && (
+              <button
+                type="button"
+                className={`${BOTON_PRINCIPAL} mt-3 py-2 px-4 text-xs`}
+                disabled={estado === 'guardando'}
+                onClick={() => guardarConFechaPropuesta()}
+              >
+                Confirmar fecha y guardar
+              </button>
+            )}
+
+            {errorFechaPropuesta && (
+              <p className="mt-3 text-sm text-[#ba1a1a]" role="alert">
+                {errorFechaPropuesta}
+              </p>
+            )}
           </div>
         </div>
       )}
