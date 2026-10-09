@@ -605,6 +605,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [confirmando, setConfirmando] = useState(false);
   const [estado, setEstado] = useState('idle');
   const [errorField, setErrorField] = useState(null);
+  const [errorMensaje, setErrorMensaje] = useState('');
   const [conflicto, setConflicto] = useState(null);
 
   const [reprogramando, setReprogramando] = useState(false);
@@ -729,6 +730,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
     setEstado('guardando');
     setErrorField(null);
+    setErrorMensaje('');
 
     const horasAguardar = horasOverride ?? horasEstimadas;
 
@@ -750,6 +752,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       if (err.status === 409 && err.conflicto) {
         setEstado('idle');
         setErrorField(null);
+        setErrorMensaje('');
         setConflicto(err.conflicto);
         return;
       }
@@ -757,11 +760,33 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       setEstado('error');
       const fe = err.fieldErrors || {};
       let campo = null;
-      if (fe.titulo) campo = 'titulo';
-      else if (fe.fecha_objetivo) campo = 'fecha';
-      else if (fe.horas_estimadas) campo = 'horas';
+      let mensajeCampo = '';
+
+      if (fe.titulo) {
+        campo = 'titulo';
+        mensajeCampo = Array.isArray(fe.titulo) ? fe.titulo[0] : fe.titulo;
+      } else if (fe.fecha_objetivo) {
+        campo = 'fecha';
+        mensajeCampo = Array.isArray(fe.fecha_objetivo)
+          ? fe.fecha_objetivo[0]
+          : fe.fecha_objetivo;
+      } else if (fe.horas_estimadas) {
+        campo = 'horas';
+        mensajeCampo = Array.isArray(fe.horas_estimadas)
+          ? fe.horas_estimadas[0]
+          : fe.horas_estimadas;
+      }
+
       setErrorField(campo);
+
       if (campo) {
+        const mensaje = mensajeCampo || mensajeError(
+          err,
+          'Revisa este campo e inténtalo de nuevo.'
+        );
+
+        setErrorMensaje(mensaje);
+
         focusField(`sub-${campo}-${subtarea.id}`);
       } else {
         onFeedback({
@@ -771,6 +796,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           focoRef: editarBtnRef,
         });
       }
+
     }
   }
 
@@ -1011,9 +1037,15 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           <label htmlFor={`sub-fecha-${subtarea.id}`} className={LABEL}>Fecha objetivo</label>
           <InputIcono icon="event"
             id={`sub-fecha-${subtarea.id}`} type="date" value={fechaObjetivo}
-            onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); }}
+            onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); setErrorMensaje(''); }}
             aria-invalid={errorField === 'fecha'}
+            aria-describedby={errorField === 'fecha' ? `sub-fecha-error-${subtarea.id}` : undefined}
           />
+          {errorField === 'fecha' && (
+            <p id={`sub-fecha-error-${subtarea.id}`} className={ERROR} role="alert">
+              {errorMensaje}
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-horas-${subtarea.id}`} className={LABEL}>Horas estimadas</label>
