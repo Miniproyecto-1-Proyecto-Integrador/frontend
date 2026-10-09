@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import {
   BOTON_PRINCIPAL,
@@ -12,20 +13,34 @@ import { getLimiteDiario, updateLimiteDiario } from './services/events';
 export default function Configuracion() {
   const [limiteDiario, setLimiteDiario] = useState('6');
   const [guardando, setGuardando] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [mensajeExito, setMensajeExito] = useState('');
 
   useEffect(() => {
+    let activo = true;
+
     async function cargarLimite() {
       try {
         const data = await getLimiteDiario();
-        setLimiteDiario(String(data.horas));
-      } catch (error) {
-        setError('No pudimos cargar tu límite diario. Intenta de nuevo.');
+
+        if (activo) {
+          setLimiteDiario(String(data.horas));
+        }
+      } catch {
+        if (activo) {
+          setError('No pudimos cargar tu límite diario. Intenta de nuevo.');
+        }
+      } finally {
+        if (activo) setCargando(false);
       }
     }
 
     cargarLimite();
+
+    return () => {
+      activo = false;
+    };
   }, []);
 
   async function guardarLimite(e) {
@@ -35,7 +50,7 @@ export default function Configuracion() {
 
     const valor = Number(limiteDiario);
 
-    if (!limiteDiario || !Number.isFinite(valor)) {
+    if (!limiteDiario.trim() || !Number.isFinite(valor)) {
       setError('Ingresa un número válido.');
       return;
     }
@@ -51,10 +66,19 @@ export default function Configuracion() {
       const data = await updateLimiteDiario(valor);
       setLimiteDiario(String(data.horas));
       setMensajeExito('El límite diario se guardó correctamente.');
-    } catch (error) {
-      setError(
-        error.message || 'No pudimos guardar el límite diario. Intenta de nuevo.'
-      );
+    } catch (err) {
+      const mensajeHoras = err.fieldErrors?.horas;
+      const mensajeDetalle = err.data?.detail;
+
+      if (Array.isArray(mensajeHoras) && mensajeHoras.length > 0) {
+        setError(mensajeHoras[0]);
+      } else if (typeof mensajeDetalle === 'string' && mensajeDetalle) {
+        setError(mensajeDetalle);
+      } else {
+        setError(
+          err.message || 'No pudimos guardar el límite diario. Intenta de nuevo.'
+        );
+      }
     } finally {
       setGuardando(false);
     }
@@ -72,7 +96,7 @@ export default function Configuracion() {
         </p>
       </div>
 
-      <form className={CARD} onSubmit={guardarLimite}>
+      <form className={CARD} onSubmit={guardarLimite} noValidate>
         <div>
           <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>
             Límite diario de trabajo
@@ -88,24 +112,35 @@ export default function Configuracion() {
             Horas máximas por día
           </label>
 
-          <input
-            id="limite-diario"
-            name="limite-diario"
-            type="number"
-            min="1"
-            max="16"
-            step="0.01"
-            value={limiteDiario}
-            onChange={(e) => {
-              setLimiteDiario(e.target.value);
-              setError('');
-              setMensajeExito('');
-            }}
-            className={INPUT}
-            aria-describedby="limite-diario-ayuda limite-diario-error"
-            aria-invalid={Boolean(error)}
-            disabled={guardando}
-          />
+          <div className="relative">
+            <span
+              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#7a7580] pointer-events-none"
+              aria-hidden="true"
+            >
+              schedule
+            </span>
+
+            <input
+              id="limite-diario"
+              name="limite-diario"
+              type="number"
+              min="1"
+              max="16"
+              step="0.01"
+              value={limiteDiario}
+              onChange={(e) => {
+                setLimiteDiario(e.target.value);
+                setError('');
+                setMensajeExito('');
+              }}
+              className={`${INPUT} pl-10`}
+              aria-describedby={
+                `limite-diario-ayuda${error ? ' limite-diario-error' : ''}`
+              }
+              aria-invalid={Boolean(error)}
+              disabled={guardando || cargando}
+            />
+          </div>
 
           <p id="limite-diario-ayuda" className="mt-1.5 text-xs text-[#49454f]">
             Ingresa un valor entre 1 y 16 horas.
@@ -127,9 +162,13 @@ export default function Configuracion() {
         <button
           type="submit"
           className={BOTON_PRINCIPAL}
-          disabled={guardando}
+          disabled={guardando || cargando}
         >
-          {guardando ? 'Guardando…' : 'Guardar límite'}
+          {cargando
+            ? 'Cargando límite…'
+            : guardando
+              ? 'Guardando…'
+              : 'Guardar límite'}
         </button>
       </form>
     </section>
