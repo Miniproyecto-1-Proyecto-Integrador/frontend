@@ -26,6 +26,7 @@ import {
   listSubtasks,
   updateEvent,
   updateSubtask,
+  getProximaFechaDisponible,
 } from './services/events';
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
@@ -1179,6 +1180,10 @@ function NuevaGestionForm({ eventoId, onCreada }) {
   const [ultimaAgregada, setUltimaAgregada] = useState(null);
   const [conflicto, setConflicto] = useState(null);
 
+  const [buscandoFecha, setBuscandoFecha] = useState(false);
+  const [fechaPropuesta, setFechaPropuesta] = useState(null);
+  const [errorFechaPropuesta, setErrorFechaPropuesta] = useState(null);
+
   const toggleBtnRef = useRef(null);
   const conflictoDialogRef = useRef(null);
   const conflictoHeadingRef = useRef(null);
@@ -1209,7 +1214,10 @@ useFocusTrap(conflicto, conflictoDialogRef);
 
   function actualizarCampo(campo, valor) {
     setCampos((prev) => ({ ...prev, [campo]: valor }));
+    setFechaPropuesta(null);
+    setErrorFechaPropuesta(null);
     setUltimaAgregada(null);
+
     if (errorField === campo) {
       setError(null);
       setErrorField(null);
@@ -1224,6 +1232,41 @@ useFocusTrap(conflicto, conflictoDialogRef);
     setUltimaAgregada(null);
     toggleBtnRef.current?.focus();
   }
+
+  
+async function buscarProximaFecha() {
+  if (!conflicto || !campos.fecha_objetivo || !campos.horas_estimadas) {
+    return;
+  }
+
+  setBuscandoFecha(true);
+  setErrorFechaPropuesta(null);
+  setFechaPropuesta(null);
+
+  try {
+    const resultado = await getProximaFechaDisponible(
+      eventoId,
+      campos.fecha_objetivo,
+      campos.horas_estimadas
+    );
+
+    if (resultado.disponible && resultado.fecha) {
+      setFechaPropuesta(resultado.fecha);
+    } else {
+      setErrorFechaPropuesta(
+        resultado.mensaje ||
+          'No encontramos una fecha disponible antes del evento.'
+      );
+    }
+  } catch (err) {
+    setErrorFechaPropuesta(
+      mensajeError(err, 'No pudimos buscar una fecha disponible.')
+    );
+  } finally {
+    setBuscandoFecha(false);
+  }
+}
+
 
   async function guardar(e) {
     e.preventDefault();
@@ -1322,7 +1365,9 @@ useFocusTrap(conflicto, conflictoDialogRef);
 
   function volverAEditar() {
     setConflicto(null);
-    focusField('nueva-horas');
+    setFechaPropuesta(null);
+    setErrorFechaPropuesta(null);
+    focusField('nueva-fecha');
   }
 
 
@@ -1488,6 +1533,8 @@ useFocusTrap(conflicto, conflictoDialogRef);
           </div>
 
           <div className="mt-4 flex gap-3 flex-wrap">
+            
+          {Number(conflicto.horas_disponibles) > 0 ? (
             <button
               type="button"
               className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
@@ -1496,7 +1543,79 @@ useFocusTrap(conflicto, conflictoDialogRef);
             >
               Reducir a {conflicto.horas_disponibles} h y guardar
             </button>
+          ) : (
+            <button
+              type="button"
+              className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+              onClick={buscarProximaFecha}
+              disabled={estado === 'guardando' || buscandoFecha}
+            >
+              {buscandoFecha
+                ? 'Buscando fecha…'
+                : 'Mover a la próxima fecha disponible'}
+            </button>
+          )}
+          
+          {fechaPropuesta && (
+            <div className="mt-3 rounded-lg border border-[#e5e7f8] bg-white p-3">
+              <p className="text-sm text-[#181b27]">
+                Próxima fecha disponible:
+                <strong className="ml-1">{fechaPropuesta}</strong>
+              </p>
+              <p className="mt-1 text-xs text-[#7a7580]">
+                Revisa la fecha antes de confirmar el cambio.
+              </p>
+            </div>
+          )}
 
+          
+          {fechaPropuesta && (
+            <button
+              type="button"
+              className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+              disabled={estado === 'guardando'}
+              onClick={async () => {
+                setEstado('guardando');
+                setError(null);
+
+                try {
+                  const creada = await createSubtask(eventoId, {
+                    titulo: campos.titulo.trim(),
+                    fecha_objetivo: fechaPropuesta,
+                    horas_estimadas: campos.horas_estimadas,
+                  });
+
+                  onCreada(creada);
+                  setUltimaAgregada(creada.titulo);
+                  setCampos(nuevaGestionVacia());
+                  setConflicto(null);
+                  setFechaPropuesta(null);
+                  setErrorFechaPropuesta(null);
+                  setEstado('idle');
+                  focusField('nueva-titulo');
+                } catch (err) {
+                  setEstado('idle');
+
+                  if (err.status === 409 && err.conflicto) {
+                    setConflicto(err.conflicto);
+                    setFechaPropuesta(null);
+                    return;
+                  }
+
+                  setError(mensajeError(err, 'No pudimos agregar la gestión.'));
+                }
+              }}
+            >
+              Confirmar fecha y guardar
+            </button>
+          )}
+
+
+          {errorFechaPropuesta && (
+            <p className="mt-3 text-sm text-[#ba1a1a]" role="alert">
+              {errorFechaPropuesta}
+            </p>
+          )}
             <button
               type="button"
               className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
