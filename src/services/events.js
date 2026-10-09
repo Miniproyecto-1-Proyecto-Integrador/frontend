@@ -96,6 +96,23 @@ export function createSubtask(eventId, payload) {
   });
 }
 
+
+/**
+ * GET /events/:eventId/subtasks/proxima-fecha/
+ * Busca una fecha donde quepan las horas completas de la gestión.
+ */
+export function getProximaFechaDisponible(eventId, fecha, horas) {
+  const params = new URLSearchParams({
+    fecha,
+    horas: String(horas),
+  });
+
+  return request(
+    `/events/${eventId}/subtasks/proxima-fecha/?${params.toString()}`
+  );
+}
+
+
 /** PATCH /events/:eventId/subtasks/:id/ — edita una gestión logística */
 export function updateSubtask(eventId, id, payload) {
   return request(`/events/${eventId}/subtasks/${id}/`, {
