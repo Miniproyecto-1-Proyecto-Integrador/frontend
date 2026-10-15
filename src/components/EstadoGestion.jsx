@@ -77,13 +77,17 @@ export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionIn
   async function guardar(nuevoEstado, notaNueva = '') {
     const payload = { estado: nuevoEstado };
     if (nuevoEstado === 'pospuesta') payload.nota = notaNueva;
+    else if (nuevoEstado === 'pendiente') payload.nota = '';
 
     setError('');
     setAviso('');
     setGuardando(true);
     setOptimista({
       estado: nuevoEstado,
-      nota: nuevoEstado === 'pospuesta' ? notaNueva : notaGuardada,
+      nota:
+        nuevoEstado === 'pospuesta' ? notaNueva
+            : nuevoEstado === 'pendiente' ? ''
+                : notaGuardada,
     });
     setFormAbierto(false);
 
