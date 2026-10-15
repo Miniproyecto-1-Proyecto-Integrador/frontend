@@ -7,7 +7,9 @@ import {
     LABEL,
 } from './components/ui';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
-import { getHoy, listEvents, updateSubtask } from './services/events';
+import { GestionEstado } from './components/EstadoGestion';
+import { MC } from './helpers/microcopy';
+import { getHoy, listEvents } from './services/events';
 
 // El orden de los grupos en pantalla es fijo. El orden DENTRO de cada grupo
 // lo decide el backend: aquí no se reordena nada.
@@ -20,6 +22,7 @@ const GRUPOS = [
 const OPCIONES_ESTADO = [
   { valor: 'pendiente', texto: 'Pendientes' },
   { valor: 'hecha', texto: 'Hechas' },
+  { valor: 'pospuesta', texto: 'Pospuestas' },
   { valor: 'todas', texto: 'Todas' },
 ];
 
@@ -33,6 +36,15 @@ function formatFecha(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+// Suma de horas de las gestiones que siguen pendientes de un grupo (carga real).
+function horasPendientes(items) {
+  const total = items.reduce(
+    (acc, g) => (g.estado === 'pendiente' ? acc + (Number(g.horas_estimadas) || 0) : acc),
+    0
+  );
+  return Math.round(total * 100) / 100;
 }
 
 // Prioriza el mensaje que manda el back; solo los fallos de red usan el genérico.
@@ -57,7 +69,6 @@ export default function Hoy() {
   const [reglaAbierta, setReglaAbierta] = useState(false);
   const [aviso, setAviso] = useState(null); // { texto, id }
   const [errorAccion, setErrorAccion] = useState('');
-  const [guardandoId, setGuardandoId] = useState(null);
 
   const headingRef = useRef(null);
   const avisoRef = useRef(null);
@@ -104,7 +115,7 @@ export default function Hoy() {
     }
   }, [status]);
 
-  // Tras marcar una gestión, el botón desaparece de la lista (puede salir del filtro):
+  // Tras cambiar una gestión, esta puede desaparecer de la lista (sale del filtro):
   // llevamos el foco al aviso para no dejar al usuario de teclado en el vacío.
   useEffect(() => {
     if (aviso) avisoRef.current?.focus();
@@ -127,22 +138,13 @@ export default function Hoy() {
     setErrorAccion('');
   }
 
-  async function cambiarEstado(gestion) {
-    const nuevo = gestion.estado === 'hecha' ? 'pendiente' : 'hecha';
-    setGuardandoId(gestion.id);
+  // C3: al marcar hecha / pospuesta el backend ya guardó el cambio; recargamos
+  // /hoy en silencio para que re-agrupe, re-ordene y baje la carga de horas.
+  // No reordenamos nada aquí: eso lo decide el backend.
+  function alActualizar(_actualizada, mensaje) {
     setErrorAccion('');
-    try {
-      await updateSubtask(gestion.evento_id, gestion.id, { estado: nuevo });
-      await cargar({ silencioso: true }); // el back re-agrupa y re-ordena, no lo hacemos aquí
-      setAviso({
-        texto: `"${gestion.titulo}" quedó como ${nuevo === 'hecha' ? 'hecha' : 'pendiente'}.`,
-        id: Date.now(),
-      });
-    } catch (err) {
-      setErrorAccion(mensajeDeError(err));
-    } finally {
-      setGuardandoId(null);
-    }
+    setAviso({ texto: mensaje, id: Date.now() });
+    cargar({ silencioso: true });
   }
 
   return (
@@ -232,7 +234,7 @@ export default function Hoy() {
         </button>
       </form>
 
-      {/* Aviso tras marcar hecha/pendiente (también lo anuncia el lector de pantalla) */}
+      {/* Aviso tras cambiar el estado de una gestión (también lo anuncia el lector de pantalla) */}
       {aviso && (
         <p
           key={aviso.id}
@@ -308,13 +310,18 @@ export default function Hoy() {
                 >
                   <span className="material-symbols-outlined text-[22px]" aria-hidden="true">{icon}</span>
                   {titulo} ({items.length})
+                  {horasPendientes(items) > 0 && (
+                    <span className="text-sm font-semibold text-[#49454f]">
+                      · {MC.hoy.horasPendientes(horasPendientes(items))}
+                    </span>
+                  )}
                 </h2>
                 <ul className="flex flex-col gap-3">
                   {items.map((g) => {
                     const hecha = g.estado === 'hecha';
                     return (
-                      <li key={g.id} className={`${CARD} !p-4 sm:!p-5 !gap-3 sm:flex-row sm:items-center`}>
-                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                      <li key={g.id} className={`${CARD} !p-4 sm:!p-5 !gap-3`}>
+                        <div className="flex min-w-0 flex-col gap-1">
                           <span className={`${FONT_HEADLINE} font-bold text-[#181b27] ${hecha ? 'line-through' : ''}`}>
                             {g.titulo}
                           </span>
@@ -330,24 +337,13 @@ export default function Hoy() {
                             {' · '}
                             {Number(g.horas_estimadas)} h
                           </span>
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#49454f]">
-                            <span className="material-symbols-outlined text-[16px]" aria-hidden="true">
-                              {hecha ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                            {hecha ? 'Hecha' : 'Pendiente'}
-                          </span>
                         </div>
-                        <button
-                          type="button"
-                          className={BOTON_SECUNDARIO}
-                          disabled={guardandoId === g.id}
-                          onClick={() => cambiarEstado(g)}
-                          aria-label={`${hecha ? 'Marcar como pendiente' : 'Marcar como hecha'}: ${g.titulo}`}
-                        >
-                          {guardandoId === g.id
-                            ? 'Guardando…'
-                            : hecha ? 'Marcar pendiente' : 'Marcar hecha'}
-                        </button>
+                        <GestionEstado
+                          eventoId={g.evento_id}
+                          gestion={g}
+                          onActualizada={alActualizar}
+                          confirmacionInline={false}
+                        />
                       </li>
                     );
                   })}
