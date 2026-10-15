@@ -139,7 +139,7 @@ export function deleteSubtask(eventId, id) {
 
 /**
  * GET /hoy/ — gestiones del organizador agrupadas en vencidas / hoy / próximas.
- * filtros: { estado: 'pendiente' | 'hecha' | 'todas', evento: <id> }
+ * filtros: { estado: 'pendiente' | 'hecha' | 'todas' | 'pospuesta', evento: <id> }
  * Solo se mandan los que vengan con valor; si se omiten, el backend aplica
  * su default (estado=pendiente, todos los eventos).
  */
@@ -164,4 +164,9 @@ export function updateLimiteDiario(horas) {
     method: 'PUT',
     body: JSON.stringify({ horas }),
   });
+}
+
+/** GET /events/:eventId/progreso/ — progreso de preparación del evento. */
+export function getProgresoEvento(eventId) {
+  return request(`/events/${eventId}/progreso/`);
 }
