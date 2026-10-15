@@ -12,7 +12,7 @@ const TEXTAREA =
 
 // El estado nunca se comunica solo con color: siempre lleva ícono + texto.
 const CHIP = {
-  pendiente: { icon: 'radio_button_unchecked', clase: 'bg-[#f2f3ff] text-[#49454f] border-[#e5e7f8]' },
+  pendiente: { icon: 'warning', clase: 'bg-[#ffe1d3] text-[#8a2c00] border-[#8a2c00]/30' },
   hecha: { icon: 'check_circle', clase: 'bg-[#eaf7ee] text-[#1e5a34] border-[#1e5a34]/25' },
   pospuesta: { icon: 'pause_circle', clase: 'bg-[#fff4d6] text-[#6b4a00] border-[#6b4a00]/25' },
 };
