@@ -95,6 +95,7 @@ export const MC = {
     preventivoAyuda: 'Ajusta la fecha o las horas antes de guardar para evitar que se rechace.',
     reducirA: (horas) => `Reducir a ${horas} h`,
     moverA: (fecha) => `Mover al ${fecha}`,
+    bloqueoCrear: 'Antes de guardar, ajusta las gestiones que superan tu límite diario.',
     resumenCrear: (n) =>
       `${n} ${n === 1 ? 'gestión supera' : 'gestiones superan'} tu límite diario. Ajústalas antes de guardar para evitar que se rechacen.`,
 
@@ -103,14 +104,7 @@ export const MC = {
     conflictoTexto: 'Esta gestión haría que el tiempo planificado para el día supere tu límite diario.',
     conflictoDisponibles: (h) => `Tienes ${h} h disponibles dentro de tu límite diario.`,
     reducirYGuardar: (h) => `Reducir a ${h} h y guardar`,
-    moverProxima: 'Mover a la próxima fecha disponible',
-    buscandoFecha: 'Buscando fecha…',
-    fechaPropuesta: 'Próxima fecha disponible:',
-    revisaFecha: 'Revisa la fecha antes de confirmar el cambio.',
-    confirmarFecha: 'Confirmar fecha y guardar',
     volverEditar: 'Volver a editar',
-    sinFecha: 'No encontramos una fecha disponible antes del evento.',
-    errorFecha: 'No pudimos buscar una fecha disponible.',
     soloConflictos:
       'El evento se creó, pero algunas gestiones superan tu límite diario. Elige cómo resolverlas abajo.',
   },

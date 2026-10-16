@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { esFalloDeRed, MENSAJE_ERROR_RED } from '../helpers/errors';
+import { useEffect, useRef } from 'react';
 import { MC } from '../helpers/microcopy';
 import { formatFecha } from '../helpers/sobrecarga';
-import { getProximaFechaDisponible } from '../services/events';
 import { BOTON_PRINCIPAL, BOTON_SECUNDARIO, FONT_HEADLINE } from './ui';
 
 const COMPACTO = 'py-2 px-4 text-xs';
@@ -57,17 +55,14 @@ function Dato({ etiqueta, valor, peligro = false }) {
 
 /**
  * Conflicto de sobrecarga al GUARDAR (el backend respondió 409 con `conflicto`).
- * Ofrece las mismas alternativas que en Mis eventos: reducir horas o mover a
- * la próxima fecha disponible (endpoint proxima-fecha), o volver a editar.
+ * Muestra los datos del conflicto y ofrece reducir las horas a las que sí caben
+ * (si quedan horas disponibles) o volver a editar la gestión.
  *
  *   conflicto: { fecha, horas_ya_planificadas, horas_gestion, horas_total,
  *                limite_diario, exceso, horas_disponibles }
- *   gestion:   { id, fecha_objetivo, horas_estimadas }
+ *   gestion:   { id }
  */
-export function ConflictoSobrecarga({ conflicto, eventoId, gestion, onReducir, onMover, onVolver }) {
-  const [buscando, setBuscando] = useState(false);
-  const [fechaPropuesta, setFechaPropuesta] = useState(null);
-  const [errorFecha, setErrorFecha] = useState(null);
+export function ConflictoSobrecarga({ conflicto, gestion, onReducir, onVolver }) {
   const headingRef = useRef(null);
   const idTitulo = `conflicto-titulo-${gestion.id}`;
 
@@ -77,21 +72,6 @@ export function ConflictoSobrecarga({ conflicto, eventoId, gestion, onReducir, o
 
   const disponibles = Number(conflicto.horas_disponibles);
   const puedeReducir = Number.isFinite(disponibles) && disponibles > 0;
-
-  async function buscarFecha() {
-    setBuscando(true);
-    setErrorFecha(null);
-    setFechaPropuesta(null);
-    try {
-      const r = await getProximaFechaDisponible(eventoId, gestion.fecha_objetivo, gestion.horas_estimadas);
-      if (r.disponible && r.fecha) setFechaPropuesta(r.fecha);
-      else setErrorFecha(r.mensaje || MC.sobrecarga.sinFecha);
-    } catch (err) {
-      setErrorFecha(esFalloDeRed(err) ? MENSAJE_ERROR_RED : MC.sobrecarga.errorFecha);
-    } finally {
-      setBuscando(false);
-    }
-  }
 
   return (
     <div
@@ -118,9 +98,9 @@ export function ConflictoSobrecarga({ conflicto, eventoId, gestion, onReducir, o
         <Dato etiqueta="Exceso" valor={`${conflicto.exceso} h`} peligro />
       </div>
 
-      <p className="text-xs text-[#49454f]">
-        {puedeReducir ? MC.sobrecarga.conflictoDisponibles(disponibles) : null}
-      </p>
+      {puedeReducir && (
+        <p className="text-xs text-[#49454f]">{MC.sobrecarga.conflictoDisponibles(disponibles)}</p>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {puedeReducir && (
@@ -135,37 +115,11 @@ export function ConflictoSobrecarga({ conflicto, eventoId, gestion, onReducir, o
         <button
           type="button"
           className={`${puedeReducir ? BOTON_SECUNDARIO : BOTON_PRINCIPAL} ${COMPACTO}`}
-          onClick={buscarFecha}
-          disabled={buscando}
+          onClick={onVolver}
         >
-          {buscando ? MC.sobrecarga.buscandoFecha : MC.sobrecarga.moverProxima}
-        </button>
-        <button type="button" className={`${BOTON_SECUNDARIO} ${COMPACTO}`} onClick={onVolver}>
           {MC.sobrecarga.volverEditar}
         </button>
       </div>
-
-      {fechaPropuesta && (
-        <div className="flex flex-col gap-2 rounded-lg border border-[#e5e7f8] bg-white p-3" role="status">
-          <p className="text-sm text-[#181b27]">
-            {MC.sobrecarga.fechaPropuesta} <strong>{fechaPropuesta}</strong>
-          </p>
-          <p className="text-xs text-[#49454f]">{MC.sobrecarga.revisaFecha}</p>
-          <button
-            type="button"
-            className={`${BOTON_PRINCIPAL} ${COMPACTO} self-start`}
-            onClick={() => onMover(fechaPropuesta)}
-          >
-            {MC.sobrecarga.confirmarFecha}
-          </button>
-        </div>
-      )}
-
-      {errorFecha && (
-        <p className="text-sm text-[#ba1a1a]" role="alert">
-          {errorFecha}
-        </p>
-      )}
     </div>
   );
 }

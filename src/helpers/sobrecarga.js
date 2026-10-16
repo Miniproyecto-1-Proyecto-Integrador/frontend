@@ -52,14 +52,20 @@ export function diasSobrecargados(carga, limite) {
     .sort((a, b) => a.fecha.localeCompare(b.fecha));
 }
 
-// Primer día después de `desde` (y hasta la fecha del evento) donde caben `horas`.
-export function proximaFechaLibre({ desde, hasta, minimo, horas, limite, carga }) {
-  if (!desde || !hasta || !(horas > 0) || horas > limite) return null;
+const cabe = (carga, dia, horas, limite) => redondear((carga[dia]?.horas ?? 0) + horas) <= limite;
+
+// Día con espacio más cercano a `desde`, hacia atrás (desde hoy) o hacia adelante (hasta la
+// fecha del evento). Si empatan, se prefiere el anterior.
+export function fechaLibreCercana({ desde, hasta, minimo, horas, limite, carga }) {
+  if (!desde || !(horas > 0) || horas > limite) return null;
   for (let i = 1; i <= 400; i++) {
-    const dia = sumarDias(desde, i);
-    if (dia > hasta) return null;
-    if (minimo && dia < minimo) continue;
-    if (redondear((carga[dia]?.horas ?? 0) + horas) <= limite) return dia;
+    const antes = sumarDias(desde, -i);
+    const despues = sumarDias(desde, i);
+    const antesValido = Boolean(minimo) && antes >= minimo;
+    const despuesValido = Boolean(hasta) && despues <= hasta;
+    if (!antesValido && !despuesValido) return null;
+    if (antesValido && cabe(carga, antes, horas, limite)) return antes;
+    if (despuesValido && cabe(carga, despues, horas, limite)) return despues;
   }
   return null;
 }

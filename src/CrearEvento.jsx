@@ -18,8 +18,8 @@ import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 import { MC } from './helpers/microcopy';
 import {
   cargaPorDia,
+  fechaLibreCercana,
   gestionesVigentes,
-  proximaFechaLibre,
   redondear,
   redondearAbajo,
 } from './helpers/sobrecarga';
@@ -223,6 +223,15 @@ export default function CrearEvento() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    // Si alguna gestión superaría el límite diario, no se guarda nada todavía:
+    // evita crear el evento a medias con unas gestiones guardadas y otras no.
+    if (totalAvisos > 0) {
+      setFormError(MC.sobrecarga.bloqueoCrear);
+      const primera = gestiones.find((g) => avisos[g.id]);
+      if (primera) focusField(`gestion-fecha-${primera.id}`);
+      return;
+    }
+
     if (eventoId) {
       await guardarGestionesPendientes(eventoId);
       return;
@@ -260,38 +269,54 @@ export default function CrearEvento() {
   const totalGestiones = gestiones.length;
   const totalHoras = gestiones.reduce((sum, g) => sum + (Number(g.horas_estimadas) || 0), 0);
 
-  // Aviso de sobrecarga en vivo: carga ya planificada en otros eventos + lo que se está escribiendo aquí.
-  const avisos = useMemo(() => {
-    if (limite === null || !hoyData) return {};
+  // Carga por día = lo ya planificado en otros eventos + los borradores de esta pantalla.
+  const cargaTotal = useMemo(() => {
+    if (!hoyData) return {};
     const existente = cargaPorDia(gestionesVigentes(hoyData));
     const borradores = cargaPorDia(gestiones);
     const total = {};
     for (const dia of new Set([...Object.keys(existente), ...Object.keys(borradores)])) {
       total[dia] = { horas: (existente[dia]?.horas ?? 0) + (borradores[dia]?.horas ?? 0) };
     }
+    return total;
+  }, [gestiones, hoyData]);
+
+  // Aviso en vivo. Se recorre en el mismo orden en que se guardan las gestiones: la que hace
+  // pasar el límite es la que el backend rechazaría, y esa es la que se marca.
+  const avisos = useMemo(() => {
+    if (limite === null || !hoyData) return {};
+    const existente = cargaPorDia(gestionesVigentes(hoyData));
+    const acumulado = {};
     const resultado = {};
     for (const g of gestiones) {
       const horas = Number(g.horas_estimadas);
-      if (g.status === 'saved' || g.conflicto || !g.fecha_objetivo || !(horas > 0)) continue;
-      const horasTotal = redondear(total[g.fecha_objetivo]?.horas ?? 0);
-      if (horasTotal <= limite) continue;
+      if (!g.fecha_objetivo || !(horas > 0)) continue;
+      const antes = (existente[g.fecha_objetivo]?.horas ?? 0) + (acumulado[g.fecha_objetivo] ?? 0);
+      acumulado[g.fecha_objetivo] = (acumulado[g.fecha_objetivo] ?? 0) + horas;
+      const despues = redondear(antes + horas);
+      if (g.status === 'saved' || g.conflicto || despues <= limite) continue;
       resultado[g.id] = {
-        horasTotal,
+        horasTotal: despues,
         limite,
-        disponibles: Math.max(0, redondearAbajo(limite - (horasTotal - horas))),
-        sugerencia: proximaFechaLibre({
+        disponibles: Math.max(0, redondearAbajo(limite - antes)),
+        sugerencia: fechaLibreCercana({
           desde: g.fecha_objetivo,
           hasta: fecha,
           minimo: hoyData.hoy,
           horas,
           limite,
-          carga: total,
+          carga: cargaTotal,
         }),
       };
     }
     return resultado;
-  }, [gestiones, limite, hoyData, fecha]);
+  }, [gestiones, limite, hoyData, fecha, cargaTotal]);
   const totalAvisos = Object.keys(avisos).length;
+
+  // El mensaje de bloqueo desaparece solo cuando ya no queda ninguna gestión en sobrecarga.
+  useEffect(() => {
+    if (totalAvisos === 0 && formError === MC.sobrecarga.bloqueoCrear) setFormError(null);
+  }, [totalAvisos, formError]);
 
   return (
     <div className="flex flex-col gap-2 pb-16">
@@ -563,10 +588,8 @@ export default function CrearEvento() {
                     {gestion.conflicto && (
                       <ConflictoSobrecarga
                         conflicto={gestion.conflicto}
-                        eventoId={eventoId}
                         gestion={gestion}
                         onReducir={(horas) => resolverConflicto(gestion.id, { horas_estimadas: horas })}
-                        onMover={(nuevaFecha) => resolverConflicto(gestion.id, { fecha_objetivo: nuevaFecha })}
                         onVolver={() => volverAEditar(gestion.id)}
                       />
                     )}
@@ -627,7 +650,7 @@ export default function CrearEvento() {
             </div>
 
             <div className={`${CARD} shadow-sm`}>
-              {totalAvisos > 0 && !eventoYaCreado && (
+              {totalAvisos > 0 && (
                 <p role="status" className="flex items-start gap-2 rounded-xl border border-[#6b4a00]/25 bg-[#fff4d6] p-3 text-xs font-semibold text-[#6b4a00]">
                   <span className="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span>
                   {MC.sobrecarga.resumenCrear(totalAvisos)}
