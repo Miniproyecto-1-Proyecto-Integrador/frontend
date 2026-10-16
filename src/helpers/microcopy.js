@@ -50,6 +50,27 @@ export const MC = {
     etiquetaBarra: (porcentaje) => `Progreso de preparación del evento: ${porcentaje}%`,
   },
 
+  progresoGeneral: {
+    titulo: 'Progreso general',
+    completado: 'completado',
+    cargando: 'Calculando tu progreso general…',
+    error: 'No pudimos calcular tu progreso general.',
+    reintentar: 'Reintentar',
+    vacio: 'Sin gestiones asignadas todavía',
+    conteo: (hechas, total) =>
+      `${hechas} de ${total} ${total === 1 ? 'gestión hecha' : 'gestiones hechas'}`,
+    eventos: (n) => `en ${n} ${n === 1 ? 'evento' : 'eventos'}`,
+    mensajeInicio: 'Todavía no hay gestiones hechas. ¡Empieza por la primera!',
+    mensajeAvance: 'Vas avanzando. ¡Sigue así!',
+    mensajeListo: '¡Todo listo! Completaste todas tus gestiones.',
+    parcial: (cargados, total) =>
+      `Calculado con ${cargados} de ${total} eventos: el resto no cargó.`,
+    porEvento: 'Progreso por evento',
+    hechas: 'Hechas',
+    porCompletar: 'Por completar',
+    eventosEtiqueta: 'Eventos',
+  },
+
   paginaProgreso: {
     titulo: 'Progreso',
     subtitulo: 'Así va la preparación de cada uno de tus eventos.',

@@ -4,42 +4,14 @@ import { getProgresoEvento } from '../services/events';
 import { BOTON_SECUNDARIO } from './ui';
 
 /**
- * Barra de progreso de preparación de UN evento (C2).
- * Consume GET /api/events/:id/progreso/ y muestra exactamente lo que devuelve
- * el backend: porcentaje, subtareas_hechas y total_subtareas (no recalcula nada).
+ * Vista (sin peticiones) del progreso de UN evento: cargando, error con "Reintentar",
+ * "Sin gestiones asignadas todavía" o la barra con porcentaje y conteo.
+ * Muestra exactamente lo que devuelve el backend; no recalcula nada.
  *
- * - eventoId: id del evento.
- * - claveActualizacion: cuando este valor cambia, se vuelve a consultar el
- *   progreso en silencio (sin parpadeo) para que la barra se actualice sin recargar.
+ *   status: 'loading' | 'ok' | 'error'
+ *   datos:  { total_subtareas, subtareas_hechas, porcentaje }
  */
-export default function ProgresoBarra({ eventoId, claveActualizacion = '' }) {
-  const [status, setStatus] = useState('loading'); // loading | ok | error
-  const [datos, setDatos] = useState(null);
-  const reqId = useRef(0);
-  const tieneDatos = useRef(false);
-
-  const cargar = useCallback(
-    async ({ silencioso = false } = {}) => {
-      const id = ++reqId.current; // descarta respuestas viejas si llegan desordenadas
-      if (!silencioso) setStatus('loading');
-      try {
-        const res = await getProgresoEvento(eventoId);
-        if (id !== reqId.current) return;
-        setDatos(res);
-        tieneDatos.current = true;
-        setStatus('ok');
-      } catch {
-        if (id !== reqId.current) return;
-        setStatus('error');
-      }
-    },
-    [eventoId]
-  );
-
-  useEffect(() => {
-    cargar({ silencioso: tieneDatos.current });
-  }, [cargar, claveActualizacion]);
-
+export function EstadoProgreso({ status, datos, onReintentar }) {
   if (status === 'loading') {
     return (
       <p role="status" className="text-sm text-[#49454f]">
@@ -58,7 +30,7 @@ export default function ProgresoBarra({ eventoId, claveActualizacion = '' }) {
         <button
           type="button"
           className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
-          onClick={() => cargar()}
+          onClick={onReintentar}
         >
           {MC.progreso.reintentar}
         </button>
@@ -103,4 +75,43 @@ export default function ProgresoBarra({ eventoId, claveActualizacion = '' }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Barra de progreso de preparación de UN evento (C2) que consulta sola
+ * GET /api/events/:id/progreso/.
+ *
+ * - eventoId: id del evento.
+ * - claveActualizacion: cuando este valor cambia, se vuelve a consultar el
+ *   progreso en silencio (sin parpadeo) para que la barra se actualice sin recargar.
+ */
+export default function ProgresoBarra({ eventoId, claveActualizacion = '' }) {
+  const [status, setStatus] = useState('loading'); // loading | ok | error
+  const [datos, setDatos] = useState(null);
+  const reqId = useRef(0);
+  const tieneDatos = useRef(false);
+
+  const cargar = useCallback(
+    async ({ silencioso = false } = {}) => {
+      const id = ++reqId.current; // descarta respuestas viejas si llegan desordenadas
+      if (!silencioso) setStatus('loading');
+      try {
+        const res = await getProgresoEvento(eventoId);
+        if (id !== reqId.current) return;
+        setDatos(res);
+        tieneDatos.current = true;
+        setStatus('ok');
+      } catch {
+        if (id !== reqId.current) return;
+        setStatus('error');
+      }
+    },
+    [eventoId]
+  );
+
+  useEffect(() => {
+    cargar({ silencioso: tieneDatos.current });
+  }, [cargar, claveActualizacion]);
+
+  return <EstadoProgreso status={status} datos={datos} onReintentar={() => cargar()} />;
 }

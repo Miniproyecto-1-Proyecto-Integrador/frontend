@@ -1,28 +1,43 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import ProgresoBarra from './components/ProgresoBarra';
+import { EstadoProgreso } from './components/ProgresoBarra';
+import ProgresoGeneral from './components/ProgresoGeneral';
 import { BOTON_PRINCIPAL, CARD, FONT_HEADLINE } from './components/ui';
 import { MC } from './helpers/microcopy';
-import { listEvents } from './services/events';
+import { getProgresoEvento, listEvents } from './services/events';
 
-// /progreso: una tarjeta por evento con su barra de progreso.
-// El backend solo expone el progreso POR evento, así que cada tarjeta consulta
-// el suyo (cada una maneja su propio cargando / error / "Reintentar").
+// /progreso: arriba el progreso general (anillo + barra) y debajo una tarjeta por evento.
+// El backend solo expone el progreso POR evento, así que cada evento consulta el suyo
+// (cada tarjeta maneja su propio cargando / error / "Reintentar") y el general se
+// calcula con esos mismos datos.
 export default function Progreso() {
   const [status, setStatus] = useState('loading'); // loading | ok | empty | error
   const [eventos, setEventos] = useState([]);
+  const [progresos, setProgresos] = useState({}); // { [id]: { status, datos } }
   const headingRef = useRef(null);
+
+  const cargarProgreso = useCallback(async (id) => {
+    setProgresos((p) => ({ ...p, [id]: { status: 'loading', datos: null } }));
+    try {
+      const datos = await getProgresoEvento(id);
+      setProgresos((p) => ({ ...p, [id]: { status: 'ok', datos } }));
+    } catch {
+      setProgresos((p) => ({ ...p, [id]: { status: 'error', datos: null } }));
+    }
+  }, []);
 
   const cargar = useCallback(async () => {
     setStatus('loading');
+    setProgresos({});
     try {
       const data = await listEvents();
       setEventos(data);
       setStatus(data.length === 0 ? 'empty' : 'ok');
+      data.forEach((ev) => cargarProgreso(ev.id));
     } catch {
       setStatus('error');
     }
-  }, []);
+  }, [cargarProgreso]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -30,6 +45,26 @@ export default function Progreso() {
   useEffect(() => {
     if (status === 'ok' || status === 'empty') headingRef.current?.focus();
   }, [status]);
+
+  const resumen = useMemo(() => {
+    const lista = eventos.map((ev) => progresos[ev.id]);
+    const ok = lista.filter((p) => p?.status === 'ok');
+    const hechas = ok.reduce((acc, p) => acc + (Number(p.datos.subtareas_hechas) || 0), 0);
+    const total = ok.reduce((acc, p) => acc + (Number(p.datos.total_subtareas) || 0), 0);
+    return {
+      cargando: lista.some((p) => !p || p.status === 'loading'),
+      fallidos: lista.filter((p) => p?.status === 'error').length,
+      cargados: ok.length,
+      eventos: eventos.length,
+      hechas,
+      total,
+      porcentaje: total > 0 ? Math.round((hechas / total) * 100) : 0,
+    };
+  }, [eventos, progresos]);
+
+  function reintentarFallidos() {
+    eventos.filter((ev) => progresos[ev.id]?.status === 'error').forEach((ev) => cargarProgreso(ev.id));
+  }
 
   return (
     <div className="flex flex-col gap-6 pb-16">
@@ -69,19 +104,35 @@ export default function Progreso() {
       )}
 
       {status === 'ok' && (
-        <ul className="flex flex-col gap-3" aria-label={`${eventos.length} eventos`}>
-          {eventos.map((ev) => (
-            <li key={ev.id} className={`${CARD} !p-4 sm:!p-5 !gap-3`}>
-              <Link
-                to={`/evento/${ev.id}`}
-                className={`${FONT_HEADLINE} font-bold text-[#63518b] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2`}
-              >
-                {ev.nombre}
-              </Link>
-              <ProgresoBarra eventoId={ev.id} />
-            </li>
-          ))}
-        </ul>
+        <>
+          <ProgresoGeneral resumen={resumen} onReintentar={reintentarFallidos} />
+
+          <section aria-labelledby="progreso-por-evento" className="flex flex-col gap-3">
+            <h2 id="progreso-por-evento" className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>
+              {MC.progresoGeneral.porEvento}
+            </h2>
+            <ul className="flex flex-col gap-3" aria-label={`${eventos.length} eventos`}>
+              {eventos.map((ev) => {
+                const p = progresos[ev.id];
+                return (
+                  <li key={ev.id} className={`${CARD} !p-4 sm:!p-5 !gap-3`}>
+                    <Link
+                      to={`/evento/${ev.id}`}
+                      className={`${FONT_HEADLINE} font-bold text-[#63518b] underline underline-offset-2 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2`}
+                    >
+                      {ev.nombre}
+                    </Link>
+                    <EstadoProgreso
+                      status={p?.status ?? 'loading'}
+                      datos={p?.datos}
+                      onReintentar={() => cargarProgreso(ev.id)}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </>
       )}
     </div>
   );
