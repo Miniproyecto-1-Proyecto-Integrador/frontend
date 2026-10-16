@@ -9,7 +9,7 @@ import {
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 import { GestionEstado } from './components/EstadoGestion';
 import { MC } from './helpers/microcopy';
-import { getHoy, listEvents } from './services/events';
+import { getHoy, listEvents, listSubtasks } from './services/events';
 
 // El orden de los grupos en pantalla es fijo. El orden DENTRO de cada grupo
 // lo decide el backend: aquí no se reordena nada.
@@ -36,6 +36,31 @@ function formatFecha(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
+}
+
+// /api/hoy/ puede no traer la nota de las gestiones pospuestas. Si falta, se completa con las
+// gestiones de ese evento (GET /events/:id/subtasks/, que sí la trae), una consulta por evento.
+// Si /api/hoy/ ya incluye `nota`, no se hace ninguna consulta extra.
+async function completarNotas(res) {
+  const grupos = res?.grupos;
+  if (!grupos) return res;
+  const faltan = Object.values(grupos).flat().filter((g) => g.estado === 'pospuesta' && g.nota === undefined);
+  if (faltan.length === 0) return res;
+
+  const eventoIds = [...new Set(faltan.map((g) => g.evento_id))];
+  const listas = await Promise.allSettled(eventoIds.map((id) => listSubtasks(id)));
+  const notas = new Map();
+  for (const l of listas) {
+    if (l.status === 'fulfilled' && Array.isArray(l.value)) {
+      l.value.forEach((sub) => notas.set(sub.id, sub.nota ?? ''));
+    }
+  }
+  const completar = (g) =>
+    g.estado === 'pospuesta' && g.nota === undefined && notas.has(g.id) ? { ...g, nota: notas.get(g.id) } : g;
+  return {
+    ...res,
+    grupos: Object.fromEntries(Object.entries(grupos).map(([clave, items]) => [clave, items.map(completar)])),
+  };
 }
 
 // Suma de horas de las gestiones que siguen pendientes de un grupo (carga real).
@@ -80,7 +105,7 @@ export default function Hoy() {
       const id = ++reqId.current; // descarta respuestas viejas si cambian los filtros rápido
       if (!silencioso) setStatus('loading');
       try {
-        const res = await getHoy({ estado: estadoParam, evento: eventoParam });
+        const res = await completarNotas(await getHoy({ estado: estadoParam, evento: eventoParam }));
         if (id !== reqId.current) return;
         setData(res);
         setError(null);
