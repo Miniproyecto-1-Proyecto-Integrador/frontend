@@ -28,6 +28,10 @@ import {
   updateSubtask,
   getProximaFechaDisponible,
 } from './services/events';
+import { GestionEstado } from './components/EstadoGestion';
+import ProgresoBarra from './components/ProgresoBarra';
+import { MC } from './helpers/microcopy';
+
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
 const EXITO = 'text-[#1e5a34] text-xs font-semibold';
@@ -146,6 +150,8 @@ export default function DetalleEvento() {
     );
   }
 
+  const claveProgreso = subtareas.map((s) => `${s.id}:${s.estado}`).join('|');
+
   return (
     <div className="flex flex-col gap-2 pb-16">
       <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2 flex-wrap">
@@ -177,6 +183,13 @@ export default function DetalleEvento() {
           onEliminado={() => navigate('/evento')}
           onFeedback={mostrarFeedback}
         />
+        
+      <section aria-labelledby="progreso-evento-heading" className={`${CARD} !gap-3`}>
+         <h2 id="progreso-evento-heading" className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>
+          {MC.progreso.titulo}
+      </h2>
+      <ProgresoBarra eventoId={id} claveActualizacion={claveProgreso} />
+      </section>
 
         <div className={CARD}>
           <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
@@ -938,6 +951,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
             {subtarea.horas_estimadas} h estimadas
           </span>
         </p>
+
+        <GestionEstado eventoId={eventoId} gestion={subtarea} onActualizada={onGuardada} />
 
         <div className="flex gap-3 flex-wrap">
           <button
