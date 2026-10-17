@@ -1,11 +1,29 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createEvent, createSubtask } from './services/events';
 import {
-  FONT_HEADLINE, CARD, CARD_HEADER_ICON, INPUT_WRAP, INPUT_ICON, INPUT, LABEL, ERROR,
-  BOTON_PRINCIPAL, BOTON_SECUNDARIO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
+  BOTON_PRINCIPAL, BOTON_SECUNDARIO,
+  CARD, CARD_HEADER_ICON,
+  ERROR,
+  FONT_HEADLINE,
+  INPUT,
+  INPUT_ICON,
+  INPUT_WRAP,
+  InputIcono, LABEL,
+  PILL_ACTIVE,
+  PILL_BASE,
+  PILL_INACTIVE,
 } from './components/ui';
+import { AvisoSobrecarga, ConflictoSobrecarga } from './components/ConflictoSobrecarga';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
+import { MC } from './helpers/microcopy';
+import {
+  cargaPorDia,
+  fechaLibreCercana,
+  gestionesVigentes,
+  redondear,
+  redondearAbajo,
+} from './helpers/sobrecarga';
+import { createEvent, createSubtask, getHoy, getLimiteDiario } from './services/events';
 
 // El backend acepta "tipo" como texto libre; estas son solo sugerencias
 // visuales (pills). "Otro" abre un campo de texto normal.
@@ -18,7 +36,7 @@ function focusField(id) {
 function nuevaGestionVacia() {
   return {
     id: crypto.randomUUID(),
-    titulo: '', fecha_objetivo: '', horas_estimadas: '', status: 'pending', error: null, errorField: null,
+    titulo: '', fecha_objetivo: '', horas_estimadas: '', status: 'pending', error: null, errorField: null, conflicto: null,
   };
 }
 
@@ -46,6 +64,11 @@ export default function CrearEvento() {
   // Gestiones logísticas del plan inicial
   const [gestiones, setGestiones] = useState([]);
 
+  // Datos para avisar de sobrecarga MIENTRAS se escriben las gestiones.
+  // Si no cargan, el formulario funciona igual (el backend sigue validando al guardar).
+  const [limite, setLimite] = useState(null);
+  const [hoyData, setHoyData] = useState(null);
+
   // Estado general del formulario
   const [eventoId, setEventoId] = useState(null);
   const [formStatus, setFormStatus] = useState('idle'); // idle | submitting | success | error
@@ -58,6 +81,25 @@ export default function CrearEvento() {
   useEffect(() => {
     headingRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    let activo = true;
+    Promise.allSettled([getLimiteDiario(), getHoy({ estado: 'pendiente' })]).then(([l, h]) => {
+      if (!activo) return;
+      if (l.status === 'fulfilled') setLimite(Number(l.value.horas));
+      if (h.status === 'fulfilled') setHoyData(h.value);
+    });
+    return () => { activo = false; };
+  }, []);
+
+  // Si se resolvió el último conflicto y todo quedó guardado, se completa el flujo.
+  useEffect(() => {
+    if (!eventoId || formStatus !== 'error') return;
+    if (gestiones.length > 0 && gestiones.every((g) => g.status === 'saved')) {
+      setFormStatus('success');
+      setFormError(null);
+    }
+  }, [gestiones, eventoId, formStatus]);
 
   useEffect(() => {
     if (formStatus !== 'success' || !eventoId) return;
@@ -77,7 +119,7 @@ export default function CrearEvento() {
     setGestiones((prev) =>
       prev.map((g) =>
         g.id === id
-          ? { ...g, [campo]: valor, error: null, errorField: null, status: g.status === 'saved' ? g.status : 'pending' }
+          ? { ...g, [campo]: valor, error: null, errorField: null, conflicto: null, status: g.status === 'saved' ? g.status : 'pending' }
           : g
       )
     );
@@ -91,7 +133,7 @@ export default function CrearEvento() {
     for (let i = 0; i < actualizadas.length; i++) {
       if (actualizadas[i].status === 'saved') continue;
 
-      actualizadas[i] = { ...actualizadas[i], status: 'saving', error: null, errorField: null };
+      actualizadas[i] = { ...actualizadas[i], status: 'saving', error: null, errorField: null, conflicto: null };
       setGestiones([...actualizadas]);
 
       try {
@@ -100,9 +142,15 @@ export default function CrearEvento() {
           fecha_objetivo: actualizadas[i].fecha_objetivo,
           horas_estimadas: actualizadas[i].horas_estimadas,
         });
-        actualizadas[i] = { ...actualizadas[i], status: 'saved', error: null, errorField: null };
+        actualizadas[i] = { ...actualizadas[i], status: 'saved', error: null, errorField: null, conflicto: null };
       } catch (err) {
         huboError = true;
+        // Sobrecarga diaria: no es un error de campo, se ofrecen alternativas para resolverla.
+        if (err.status === 409 && err.conflicto) {
+          actualizadas[i] = { ...actualizadas[i], status: 'error', error: null, errorField: null, conflicto: err.conflicto };
+          setGestiones([...actualizadas]);
+          continue;
+        }
         let mensaje = 'No pudimos guardar esta gestión.';
         let errorField = null;
         if (esFalloDeRed(err)) {
@@ -118,8 +166,13 @@ export default function CrearEvento() {
 
     if (huboError) {
       setFormStatus('error');
-      setFormError('El evento se creó, pero algunas gestiones no se pudieron guardar. Revisa los mensajes abajo e inténtalo de nuevo.');
-      const primeraConError = actualizadas.find((g) => g.status === 'error');
+      const conError = actualizadas.filter((g) => g.status === 'error');
+      setFormError(
+        conError.every((g) => g.conflicto)
+          ? MC.sobrecarga.soloConflictos
+          : 'El evento se creó, pero algunas gestiones no se pudieron guardar. Revisa los mensajes abajo e inténtalo de nuevo.'
+      );
+      const primeraConError = conError[0];
       if (primeraConError?.errorField) {
         focusField(`gestion-${primeraConError.errorField}-${primeraConError.id}`);
       }
@@ -129,8 +182,55 @@ export default function CrearEvento() {
     }
   }
 
+  // Guarda UNA gestión que quedó en conflicto, con las horas o la fecha elegidas.
+  async function resolverConflicto(gestionId, cambios) {
+    const actual = gestiones.find((g) => g.id === gestionId);
+    if (!actual || !eventoId) return;
+    const nueva = { ...actual, ...cambios };
+    const poner = (extra) =>
+      setGestiones((prev) => prev.map((g) => (g.id === gestionId ? { ...nueva, errorField: null, ...extra } : g)));
+
+    poner({ status: 'saving', error: null, conflicto: null });
+    try {
+      await createSubtask(eventoId, {
+        titulo: nueva.titulo.trim(),
+        fecha_objetivo: nueva.fecha_objetivo,
+        horas_estimadas: nueva.horas_estimadas,
+      });
+      poner({ status: 'saved', error: null, conflicto: null });
+    } catch (err) {
+      if (err.status === 409 && err.conflicto) {
+        poner({ status: 'error', error: null, conflicto: err.conflicto });
+      } else {
+        poner({
+          status: 'error',
+          conflicto: null,
+          error: esFalloDeRed(err)
+            ? MENSAJE_ERROR_RED
+            : err.fieldErrors?.horas_estimadas?.[0] || err.fieldErrors?.fecha_objetivo?.[0] || err.message || 'No pudimos guardar esta gestión.',
+        });
+      }
+    }
+  }
+
+  function volverAEditar(gestionId) {
+    setGestiones((prev) =>
+      prev.map((g) => (g.id === gestionId ? { ...g, conflicto: null, error: null, status: 'pending' } : g))
+    );
+    setTimeout(() => focusField(`gestion-fecha-${gestionId}`), 0);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
+
+    // Si alguna gestión superaría el límite diario, no se guarda nada todavía:
+    // evita crear el evento a medias con unas gestiones guardadas y otras no.
+    if (totalAvisos > 0) {
+      setFormError(MC.sobrecarga.bloqueoCrear);
+      const primera = gestiones.find((g) => avisos[g.id]);
+      if (primera) focusField(`gestion-fecha-${primera.id}`);
+      return;
+    }
 
     if (eventoId) {
       await guardarGestionesPendientes(eventoId);
@@ -168,6 +268,55 @@ export default function CrearEvento() {
   const enviando = formStatus === 'submitting';
   const totalGestiones = gestiones.length;
   const totalHoras = gestiones.reduce((sum, g) => sum + (Number(g.horas_estimadas) || 0), 0);
+
+  // Carga por día = lo ya planificado en otros eventos + los borradores de esta pantalla.
+  const cargaTotal = useMemo(() => {
+    if (!hoyData) return {};
+    const existente = cargaPorDia(gestionesVigentes(hoyData));
+    const borradores = cargaPorDia(gestiones);
+    const total = {};
+    for (const dia of new Set([...Object.keys(existente), ...Object.keys(borradores)])) {
+      total[dia] = { horas: (existente[dia]?.horas ?? 0) + (borradores[dia]?.horas ?? 0) };
+    }
+    return total;
+  }, [gestiones, hoyData]);
+
+  // Aviso en vivo. Se recorre en el mismo orden en que se guardan las gestiones: la que hace
+  // pasar el límite es la que el backend rechazaría, y esa es la que se marca.
+  const avisos = useMemo(() => {
+    if (limite === null || !hoyData) return {};
+    const existente = cargaPorDia(gestionesVigentes(hoyData));
+    const acumulado = {};
+    const resultado = {};
+    for (const g of gestiones) {
+      const horas = Number(g.horas_estimadas);
+      if (!g.fecha_objetivo || !(horas > 0)) continue;
+      const antes = (existente[g.fecha_objetivo]?.horas ?? 0) + (acumulado[g.fecha_objetivo] ?? 0);
+      acumulado[g.fecha_objetivo] = (acumulado[g.fecha_objetivo] ?? 0) + horas;
+      const despues = redondear(antes + horas);
+      if (g.status === 'saved' || g.conflicto || despues <= limite) continue;
+      resultado[g.id] = {
+        horasTotal: despues,
+        limite,
+        disponibles: Math.max(0, redondearAbajo(limite - antes)),
+        sugerencia: fechaLibreCercana({
+          desde: g.fecha_objetivo,
+          hasta: fecha,
+          minimo: hoyData.hoy,
+          horas,
+          limite,
+          carga: cargaTotal,
+        }),
+      };
+    }
+    return resultado;
+  }, [gestiones, limite, hoyData, fecha, cargaTotal]);
+  const totalAvisos = Object.keys(avisos).length;
+
+  // El mensaje de bloqueo desaparece solo cuando ya no queda ninguna gestión en sobrecarga.
+  useEffect(() => {
+    if (totalAvisos === 0 && formError === MC.sobrecarga.bloqueoCrear) setFormError(null);
+  }, [totalAvisos, formError]);
 
   return (
     <div className="flex flex-col gap-2 pb-16">
@@ -382,12 +531,12 @@ export default function CrearEvento() {
                       Gestión {index + 1}
                     </div>
 
-                    <div className="flex flex-col gap-1">
+                                        <div className="flex flex-col gap-1">
                       <label htmlFor={`gestion-titulo-${gestion.id}`} className={LABEL}>Título</label>
-                      <input
+                      <InputIcono
+                        icon="edit_calendar"
                         id={`gestion-titulo-${gestion.id}`}
                         type="text"
-                        className={`${INPUT} pl-4`}
                         placeholder="Ej: Reservar salón"
                         value={gestion.titulo}
                         disabled={gestion.status === 'saved' || gestion.status === 'saving'}
@@ -400,10 +549,10 @@ export default function CrearEvento() {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
                         <label htmlFor={`gestion-fecha-${gestion.id}`} className={LABEL}>Fecha objetivo</label>
-                        <input
+                        <InputIcono
+                          icon="calendar_month"
                           id={`gestion-fecha-${gestion.id}`}
                           type="date"
-                          className={`${INPUT} pl-4`}
                           value={gestion.fecha_objetivo}
                           disabled={gestion.status === 'saved' || gestion.status === 'saving'}
                           onChange={(e) => actualizarGestion(gestion.id, 'fecha_objetivo', e.target.value)}
@@ -413,12 +562,12 @@ export default function CrearEvento() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label htmlFor={`gestion-horas-${gestion.id}`} className={LABEL}>Horas estimadas</label>
-                        <input
+                        <InputIcono
+                          icon="schedule"
                           id={`gestion-horas-${gestion.id}`}
                           type="number"
                           min="0.5"
                           step="0.5"
-                          className={`${INPUT} pl-4`}
                           value={gestion.horas_estimadas}
                           disabled={gestion.status === 'saved' || gestion.status === 'saving'}
                           onChange={(e) => actualizarGestion(gestion.id, 'horas_estimadas', e.target.value)}
@@ -427,6 +576,23 @@ export default function CrearEvento() {
                         />
                       </div>
                     </div>
+
+                    {avisos[gestion.id] && (
+                      <AvisoSobrecarga
+                        aviso={avisos[gestion.id]}
+                        onReducir={() => actualizarGestion(gestion.id, 'horas_estimadas', String(avisos[gestion.id].disponibles))}
+                        onMover={() => actualizarGestion(gestion.id, 'fecha_objetivo', avisos[gestion.id].sugerencia)}
+                      />
+                    )}
+
+                    {gestion.conflicto && (
+                      <ConflictoSobrecarga
+                        conflicto={gestion.conflicto}
+                        gestion={gestion}
+                        onReducir={(horas) => resolverConflicto(gestion.id, { horas_estimadas: horas })}
+                        onVolver={() => volverAEditar(gestion.id)}
+                      />
+                    )}
 
                     <div className="min-h-[1.25rem] text-sm" aria-live="polite">
                       {gestion.status === 'saving' && (
@@ -484,6 +650,12 @@ export default function CrearEvento() {
             </div>
 
             <div className={`${CARD} shadow-sm`}>
+              {totalAvisos > 0 && (
+                <p role="status" className="flex items-start gap-2 rounded-xl border border-[#6b4a00]/25 bg-[#fff4d6] p-3 text-xs font-semibold text-[#6b4a00]">
+                  <span className="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span>
+                  {MC.sobrecarga.resumenCrear(totalAvisos)}
+                </p>
+              )}
               <button type="submit" className={BOTON_PRINCIPAL} disabled={enviando}>
                 <span className="material-symbols-outlined text-[18px]" aria-hidden="true">check</span>
                 {enviando

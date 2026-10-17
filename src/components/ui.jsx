@@ -54,3 +54,12 @@ export const PILL_INACTIVE =
 export function Icon({ name, className = '' }) {
   return <span className={`material-symbols-outlined ${className}`}>{name}</span>;
 }
+
+export function InputIcono({ icon, className = '', ...props }) {
+  return (
+    <div className={INPUT_WRAP}>
+      <span className={INPUT_ICON} aria-hidden="true">{icon}</span>
+      <input className={`${INPUT} ${className}`} {...props} />
+    </div>
+  );
+}

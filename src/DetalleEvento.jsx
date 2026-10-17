@@ -1,15 +1,37 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import SuccessModal from './components/SuccessCard';
 import {
-  getEvent, updateEvent, deleteEvent, listSubtasks, createSubtask, updateSubtask, deleteSubtask,
-} from './services/events';
-import {
-  FONT_HEADLINE, CARD, CARD_HEADER_ICON, INPUT_WRAP, INPUT_ICON, INPUT, LABEL, ERROR,
-  BOTON_PRINCIPAL, BOTON_SECUNDARIO, BOTON_PELIGRO, PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
+  BOTON_PELIGRO,
+  BOTON_PRINCIPAL, BOTON_SECUNDARIO,
+  CARD, CARD_HEADER_ICON,
+  ERROR,
+  FONT_HEADLINE,
+  INPUT,
+  INPUT_ICON,
+  INPUT_WRAP,
+  InputIcono,
+  LABEL,
+  PILL_ACTIVE,
+  PILL_BASE,
+  PILL_INACTIVE
 } from './components/ui';
 import { useFocusTrap } from './helpers/UseFocusTrap';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
-import SuccessModal from './components/SuccessCard';
+import {
+  createSubtask,
+  deleteEvent,
+  deleteSubtask,
+  getEvent,
+  listSubtasks,
+  updateEvent,
+  updateSubtask,
+  getProximaFechaDisponible,
+} from './services/events';
+import { GestionEstado } from './components/EstadoGestion';
+import ProgresoBarra from './components/ProgresoBarra';
+import { MC } from './helpers/microcopy';
+
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
 const EXITO = 'text-[#1e5a34] text-xs font-semibold';
@@ -128,6 +150,8 @@ export default function DetalleEvento() {
     );
   }
 
+  const claveProgreso = subtareas.map((s) => `${s.id}:${s.estado}`).join('|');
+
   return (
     <div className="flex flex-col gap-2 pb-16">
       <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2 flex-wrap">
@@ -159,6 +183,13 @@ export default function DetalleEvento() {
           onEliminado={() => navigate('/evento')}
           onFeedback={mostrarFeedback}
         />
+        
+      <section aria-labelledby="progreso-evento-heading" className={`${CARD} !gap-3`}>
+         <h2 id="progreso-evento-heading" className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>
+          {MC.progreso.titulo}
+      </h2>
+      <ProgresoBarra eventoId={id} claveActualizacion={claveProgreso} />
+      </section>
 
         <div className={CARD}>
           <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
@@ -588,6 +619,20 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [confirmando, setConfirmando] = useState(false);
   const [estado, setEstado] = useState('idle');
   const [errorField, setErrorField] = useState(null);
+  const [errorMensaje, setErrorMensaje] = useState('');
+  const [conflicto, setConflicto] = useState(null);
+
+  const [buscandoFecha, setBuscandoFecha] = useState(false);
+  const [fechaPropuesta, setFechaPropuesta] = useState(null);
+  const [errorFechaPropuesta, setErrorFechaPropuesta] = useState(null);
+
+  const [reprogramando, setReprogramando] = useState(false);
+  const [fechaReprogramada, setFechaReprogramada] = useState(subtarea.fecha_objetivo);
+  const [errorReprogramacion, setErrorReprogramacion] = useState(null);
+
+  const reprogramarBtnRef = useRef(null);
+  const reprogramarHeadingRef = useRef(null);
+  const reprogramarDialogRef = useRef(null);
 
   const [titulo, setTitulo] = useState(subtarea.titulo);
   const [fechaObjetivo, setFechaObjetivo] = useState(subtarea.fecha_objetivo);
@@ -597,6 +642,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const eliminarBtnRef = useRef(null);
   const confirmarHeadingRef = useRef(null);
   const confirmarDialogRef = useRef(null);
+  const conflictoDialogRef = useRef(null);
+  const conflictoHeadingRef = useRef(null);
 
   useEffect(() => {
     if (modo === 'editar') focusField(`sub-titulo-${subtarea.id}`);
@@ -606,12 +653,35 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     if (confirmando) confirmarHeadingRef.current?.focus();
   }, [confirmando]);
 
+  useEffect(() => {
+    if (reprogramando) {
+      reprogramarHeadingRef.current?.focus();
+    }
+  }, [reprogramando]);
+
+  useEffect(() => {
+  if (conflicto) {
+    conflictoHeadingRef.current?.focus();
+  }
+}, [conflicto]);
+
   useEscapeToClose(confirmando, () => {
     setConfirmando(false);
     eliminarBtnRef.current?.focus();
   });
 
+  useEscapeToClose(reprogramando, cerrarReprogramacion);
+
+  useEscapeToClose(conflicto, () => {
+  setConflicto(null);
+  editarBtnRef.current?.focus();
+  });
+
   useFocusTrap(confirmando, confirmarDialogRef);
+
+  useFocusTrap(reprogramando, reprogramarDialogRef);
+
+  useFocusTrap(conflicto, conflictoDialogRef);
 
   function cancelar() {
     setTitulo(subtarea.titulo);
@@ -622,16 +692,152 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     editarBtnRef.current?.focus();
   }
 
-  async function guardar(e) {
+    function abrirReprogramacion() {
+    setFechaReprogramada(subtarea.fecha_objetivo);
+    setErrorReprogramacion(null);
+    setReprogramando(true);
+  }
+
+  function cerrarReprogramacion() {
+    if (estado === 'reprogramando') return;
+
+    setReprogramando(false);
+    setErrorReprogramacion(null);
+    reprogramarBtnRef.current?.focus();
+  }
+
+  async function guardarReprogramacion(e) {
     e.preventDefault();
+
+    setEstado('reprogramando');
+    setErrorReprogramacion(null);
+
+    try {
+      const actualizada = await updateSubtask(eventoId, subtarea.id, {
+        fecha_objetivo: fechaReprogramada,
+      });
+
+      onGuardada(actualizada);
+      setEstado('idle');
+      setReprogramando(false);
+
+      onFeedback({
+        titulo: 'Gestión reprogramada',
+        mensaje: 'La nueva fecha se guardó correctamente.',
+        focoRef: reprogramarBtnRef,
+      });
+    } catch (err) {
+      setEstado('idle');
+
+      const fe = err.fieldErrors || {};
+
+      if (fe.fecha_objetivo?.[0]) {
+        setErrorReprogramacion(fe.fecha_objetivo[0]);
+      } else {
+        setErrorReprogramacion(
+          mensajeError(err, 'No pudimos reprogramar la gestión. Inténtalo de nuevo.')
+        );
+      }
+
+      reprogramarHeadingRef.current?.focus();
+    }
+  }
+
+
+  async function buscarProximaFecha() {
+    if (!conflicto || !fechaObjetivo || !horasEstimadas) {
+      return;
+    }
+
+    setBuscandoFecha(true);
+    setErrorFechaPropuesta(null);
+    setFechaPropuesta(null);
+
+    try {
+      const resultado = await getProximaFechaDisponible(
+        eventoId,
+        fechaObjetivo,
+        horasEstimadas,
+        subtarea.id
+      );
+
+      if (resultado.disponible && resultado.fecha) {
+        setFechaPropuesta(resultado.fecha);
+      } else {
+        setErrorFechaPropuesta(
+          resultado.mensaje ||
+            'No encontramos una fecha disponible antes del evento.'
+        );
+      }
+    } catch (err) {
+      setErrorFechaPropuesta(
+        mensajeError(err, 'No pudimos buscar una fecha disponible.')
+      );
+    } finally {
+      setBuscandoFecha(false);
+    }
+  }
+
+  async function guardarConFechaPropuesta() {
+    if (!fechaPropuesta) return;
+
+    setFechaObjetivo(fechaPropuesta);
+    setEstado('guardando');
+    setErrorField(null);
+    setErrorMensaje('');
+
+    try {
+      const actualizada = await updateSubtask(eventoId, subtarea.id, {
+        titulo: titulo.trim(),
+        fecha_objetivo: fechaPropuesta,
+        horas_estimadas: horasEstimadas,
+      });
+
+      onGuardada(actualizada);
+      setEstado('idle');
+      setConflicto(null);
+      setFechaPropuesta(null);
+      setErrorFechaPropuesta(null);
+      setModo('ver');
+
+      onFeedback({
+        titulo: 'Gestión editada',
+        mensaje: 'Los cambios se guardaron correctamente.',
+        focoRef: editarBtnRef,
+      });
+    } catch (err) {
+      setEstado('idle');
+
+      if (err.status === 409 && err.conflicto) {
+        setConflicto(err.conflicto);
+        setFechaPropuesta(null);
+        setErrorFechaPropuesta(null);
+        return;
+      }
+
+      onFeedback({
+        variant: 'error',
+        titulo: 'No pudimos guardar la gestión',
+        mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+        focoRef: editarBtnRef,
+      });
+    }
+  }
+
+  async function guardar(e, horasOverride = null) {
+    e?.preventDefault();
 
     setEstado('guardando');
     setErrorField(null);
+    setErrorMensaje('');
+
+    const horasAguardar = horasOverride ?? horasEstimadas;
+
     try {
       const actualizada = await updateSubtask(eventoId, subtarea.id, {
         titulo: titulo.trim(),
         fecha_objetivo: fechaObjetivo,
-        horas_estimadas: horasEstimadas,
+        horas_estimadas: horasAguardar,
       });
       onGuardada(actualizada);
       setEstado('idle');
@@ -642,14 +848,44 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         focoRef: editarBtnRef,
       });
     } catch (err) {
+      if (err.status === 409 && err.conflicto) {
+        setEstado('idle');
+        setErrorField(null);
+        setErrorMensaje('');
+        setConflicto(err.conflicto);
+        return;
+      }
+
       setEstado('error');
       const fe = err.fieldErrors || {};
       let campo = null;
-      if (fe.titulo) campo = 'titulo';
-      else if (fe.fecha_objetivo) campo = 'fecha';
-      else if (fe.horas_estimadas) campo = 'horas';
+      let mensajeCampo = '';
+
+      if (fe.titulo) {
+        campo = 'titulo';
+        mensajeCampo = Array.isArray(fe.titulo) ? fe.titulo[0] : fe.titulo;
+      } else if (fe.fecha_objetivo) {
+        campo = 'fecha';
+        mensajeCampo = Array.isArray(fe.fecha_objetivo)
+          ? fe.fecha_objetivo[0]
+          : fe.fecha_objetivo;
+      } else if (fe.horas_estimadas) {
+        campo = 'horas';
+        mensajeCampo = Array.isArray(fe.horas_estimadas)
+          ? fe.horas_estimadas[0]
+          : fe.horas_estimadas;
+      }
+
       setErrorField(campo);
+
       if (campo) {
+        const mensaje = mensajeCampo || mensajeError(
+          err,
+          'Revisa este campo e inténtalo de nuevo.'
+        );
+
+        setErrorMensaje(mensaje);
+
         focusField(`sub-${campo}-${subtarea.id}`);
       } else {
         onFeedback({
@@ -659,7 +895,21 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           focoRef: editarBtnRef,
         });
       }
+
     }
+  }
+
+  async function resolverReduciendoHoras() {
+    const horasDisponibles = Number(conflicto?.horas_disponibles);
+
+    if (!conflicto || !Number.isFinite(horasDisponibles) || horasDisponibles <= 0) {
+      return;
+    }
+
+    setHorasEstimadas(horasDisponibles.toString());
+    setConflicto(null);
+
+    await guardar(null, horasDisponibles);
   }
 
   async function confirmarEliminar() {
@@ -702,7 +952,9 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           </span>
         </p>
 
-        <div className="flex gap-3">
+        <GestionEstado eventoId={eventoId} gestion={subtarea} onActualizada={onGuardada} />
+
+        <div className="flex gap-3 flex-wrap">
           <button
             ref={editarBtnRef}
             type="button"
@@ -712,6 +964,17 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           >
             Editar
           </button>
+
+          <button
+            ref={reprogramarBtnRef}
+            type="button"
+            className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
+            onClick={abrirReprogramacion}
+            aria-label={`Reprogramar gestión: ${subtarea.titulo}`}
+          >
+            Reprogramar
+          </button>
+
           {!confirmando && (
             <button
               ref={eliminarBtnRef}
@@ -762,6 +1025,86 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
             </div>
           </div>
         )}
+
+        {reprogramando && (
+          <div
+            ref={reprogramarDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`reprogramar-heading-${subtarea.id}`}
+            className="p-4 rounded-xl border border-[#e5e7f8] bg-white shadow-sm"
+          >
+            <h3
+              id={`reprogramar-heading-${subtarea.id}`}
+              ref={reprogramarHeadingRef}
+              tabIndex={-1}
+              className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+            >
+              Reprogramar gestión
+            </h3>
+
+            <form onSubmit={guardarReprogramacion} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor={`reprogramar-fecha-${subtarea.id}`}
+                  className={LABEL}
+                >
+                  Nueva fecha objetivo
+                </label>
+
+                <InputIcono
+                  icon="calendar_month"
+                  id={`reprogramar-fecha-${subtarea.id}`}
+                  type="date"
+                  value={fechaReprogramada}
+                  disabled={estado === 'reprogramando'}
+                  onChange={(e) => {
+                    setFechaReprogramada(e.target.value);
+                    setErrorReprogramacion(null);
+                  }}
+                  aria-invalid={Boolean(errorReprogramacion)}
+                  aria-describedby={
+                    errorReprogramacion
+                      ? `reprogramar-error-${subtarea.id}`
+                      : undefined
+                  }
+                />
+
+                {errorReprogramacion && (
+                  <p
+                    id={`reprogramar-error-${subtarea.id}`}
+                    className={ERROR}
+                    role="alert"
+                  >
+                    {errorReprogramacion}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  disabled={estado === 'reprogramando'}
+                  aria-live="polite"
+                >
+                  {estado === 'reprogramando'
+                    ? 'Reprogramando…'
+                    : 'Reprogramar'}
+                </button>
+
+                <button
+                  type="button"
+                  className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                  onClick={cerrarReprogramacion}
+                  disabled={estado === 'reprogramando'}
+                >
+                  Cancelar
+                </button>
+              </div>       
+            </form>
+          </div>
+        )}
       </div>
     );
   }
@@ -782,8 +1125,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
       <div className="flex flex-col gap-1">
         <label htmlFor={`sub-titulo-${subtarea.id}`} className={LABEL}>Título</label>
-        <input
-          id={`sub-titulo-${subtarea.id}`} type="text" className={`${INPUT} pl-4`} value={titulo}
+        <InputIcono icon="title"
+          id={`sub-titulo-${subtarea.id}`} type="text" value={titulo}
           onChange={(e) => { setTitulo(e.target.value); setErrorField(null); }}
           aria-invalid={errorField === 'titulo'}
           aria-describedby={errorField === 'titulo' ? idError : undefined}
@@ -793,16 +1136,22 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-fecha-${subtarea.id}`} className={LABEL}>Fecha objetivo</label>
-          <input
-            id={`sub-fecha-${subtarea.id}`} type="date" className={`${INPUT} pl-4`} value={fechaObjetivo}
-            onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); }}
+          <InputIcono icon="event"
+            id={`sub-fecha-${subtarea.id}`} type="date" value={fechaObjetivo}
+            onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); setErrorMensaje(''); }}
             aria-invalid={errorField === 'fecha'}
+            aria-describedby={errorField === 'fecha' ? `sub-fecha-error-${subtarea.id}` : undefined}
           />
+          {errorField === 'fecha' && (
+            <p id={`sub-fecha-error-${subtarea.id}`} className={ERROR} role="alert">
+              {errorMensaje}
+            </p>
+          )}
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-horas-${subtarea.id}`} className={LABEL}>Horas estimadas</label>
-          <input
-            id={`sub-horas-${subtarea.id}`} type="number" min="0.5" step="0.5" className={`${INPUT} pl-4`}
+          <InputIcono icon= "schedule"
+            id={`sub-horas-${subtarea.id}`} type="number" min="0.5" step="0.5"
             value={horasEstimadas}
             onChange={(e) => { setHorasEstimadas(e.target.value); setErrorField(null); }}
             aria-invalid={errorField === 'horas'}
@@ -818,6 +1167,141 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           Cancelar
         </button>
       </div>
+      {conflicto && (
+        <div
+          ref={conflictoDialogRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={`conflicto-heading-${subtarea.id}`}
+          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
+        >
+          <h3
+            id={`conflicto-heading-${subtarea.id}`}
+            ref={conflictoHeadingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+          >
+            Hay un conflicto de planificación
+          </h3>
+
+          <p className="text-sm text-[#181b27] mb-3">
+            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <strong>{conflicto.fecha}</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <strong>{conflicto.horas_ya_planificadas} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <strong>{conflicto.horas_gestion} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <strong>{conflicto.horas_total} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <strong>{conflicto.limite_diario} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
+              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
+              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#7a7580]">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#7a7580] mb-3">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+
+            <div className="flex gap-3 flex-wrap">
+              {Number(conflicto.horas_disponibles) > 0 ? (
+                <button
+                  type="button"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  onClick={resolverReduciendoHoras}
+                  disabled={estado === 'guardando'}
+                >
+                  Reducir a {conflicto.horas_disponibles} h y guardar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  onClick={buscarProximaFecha}
+                  disabled={estado === 'guardando' || buscandoFecha}
+                >
+                  {buscandoFecha
+                    ? 'Buscando fecha…'
+                    : 'Mover a la próxima fecha disponible'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                onClick={() => {
+                  setConflicto(null);
+                  setFechaPropuesta(null);
+                  setErrorFechaPropuesta(null);
+                  document
+                    .getElementById(`sub-fecha-${subtarea.id}`)
+                    ?.focus();
+                }}
+                disabled={estado === 'guardando'}
+              >
+                Volver a editar
+              </button>
+            </div>
+
+            {fechaPropuesta && (
+              <div className="mt-3 rounded-lg border border-[#e5e7f8] bg-white p-3">
+                <p className="text-sm text-[#181b27]">
+                  Próxima fecha disponible:
+                  <strong className="ml-1">{fechaPropuesta}</strong>
+                </p>
+                <p className="mt-1 text-xs text-[#7a7580]">
+                  Revisa la fecha antes de confirmar el cambio.
+                </p>
+              </div>
+            )}
+
+            {fechaPropuesta && (
+              <button
+                type="button"
+                className={`${BOTON_PRINCIPAL} mt-3 py-2 px-4 text-xs`}
+                disabled={estado === 'guardando'}
+                onClick={() => guardarConFechaPropuesta()}
+              >
+                Confirmar fecha y guardar
+              </button>
+            )}
+
+            {errorFechaPropuesta && (
+              <p className="mt-3 text-sm text-[#ba1a1a]" role="alert">
+                {errorFechaPropuesta}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -843,14 +1327,27 @@ function NuevaGestionForm({ eventoId, onCreada }) {
   const [error, setError] = useState(null);
   const [errorField, setErrorField] = useState(null);
   const [ultimaAgregada, setUltimaAgregada] = useState(null);
+  const [conflicto, setConflicto] = useState(null);
+
+  const [buscandoFecha, setBuscandoFecha] = useState(false);
+  const [fechaPropuesta, setFechaPropuesta] = useState(null);
+  const [errorFechaPropuesta, setErrorFechaPropuesta] = useState(null);
 
   const toggleBtnRef = useRef(null);
+  const conflictoDialogRef = useRef(null);
+  const conflictoHeadingRef = useRef(null);
+
+  useEffect(() => {
+    if (conflicto) conflictoHeadingRef.current?.focus();
+  }, [conflicto]);
+
+useFocusTrap(conflicto, conflictoDialogRef);
 
   useEffect(() => {
     if (abierto) focusField('nueva-titulo');
   }, [abierto]);
 
-  useEscapeToClose(abierto, () => {
+  useEscapeToClose(abierto && !conflicto, () => {
     setAbierto(false);
     setCampos(nuevaGestionVacia());
     setError(null);
@@ -859,9 +1356,17 @@ function NuevaGestionForm({ eventoId, onCreada }) {
     toggleBtnRef.current?.focus();
   });
 
+  useEscapeToClose(conflicto, () => {
+    setConflicto(null);
+    focusField('nueva-horas');
+  });
+
   function actualizarCampo(campo, valor) {
     setCampos((prev) => ({ ...prev, [campo]: valor }));
+    setFechaPropuesta(null);
+    setErrorFechaPropuesta(null);
     setUltimaAgregada(null);
+
     if (errorField === campo) {
       setError(null);
       setErrorField(null);
@@ -876,6 +1381,41 @@ function NuevaGestionForm({ eventoId, onCreada }) {
     setUltimaAgregada(null);
     toggleBtnRef.current?.focus();
   }
+
+  
+async function buscarProximaFecha() {
+  if (!conflicto || !campos.fecha_objetivo || !campos.horas_estimadas) {
+    return;
+  }
+
+  setBuscandoFecha(true);
+  setErrorFechaPropuesta(null);
+  setFechaPropuesta(null);
+
+  try {
+    const resultado = await getProximaFechaDisponible(
+      eventoId,
+      campos.fecha_objetivo,
+      campos.horas_estimadas
+    );
+
+    if (resultado.disponible && resultado.fecha) {
+      setFechaPropuesta(resultado.fecha);
+    } else {
+      setErrorFechaPropuesta(
+        resultado.mensaje ||
+          'No encontramos una fecha disponible antes del evento.'
+      );
+    }
+  } catch (err) {
+    setErrorFechaPropuesta(
+      mensajeError(err, 'No pudimos buscar una fecha disponible.')
+    );
+  } finally {
+    setBuscandoFecha(false);
+  }
+}
+
 
   async function guardar(e) {
     e.preventDefault();
@@ -898,17 +1438,87 @@ function NuevaGestionForm({ eventoId, onCreada }) {
       // gestión sin volver a hacer tab por todo el formulario.
       focusField('nueva-titulo');
     } catch (err) {
+      if (err.status === 409 && err.conflicto) {
+        setEstado('idle');
+        setError(null);
+        setErrorField(null);
+        setConflicto(err.conflicto);
+        return;
+      }
+
       setEstado('error');
       const fe = err.fieldErrors || {};
       let campo = null;
+
       if (fe.titulo) campo = 'titulo';
       else if (fe.fecha_objetivo) campo = 'fecha';
       else if (fe.horas_estimadas) campo = 'horas';
+
+      setErrorField(campo);
+      setError(mensajeError(err, 'No pudimos agregar la gestión.'));
+
+      if (campo) focusField(`nueva-${campo}`);
+    }
+
+  }
+
+  
+  async function resolverReduciendoHoras() {
+    const horasDisponibles = Number(conflicto?.horas_disponibles);
+
+    if (
+      !conflicto ||
+      !Number.isFinite(horasDisponibles) ||
+      horasDisponibles <= 0
+    ) {
+      return;
+    }
+
+    setEstado('guardando');
+    setError(null);
+    setErrorField(null);
+    setConflicto(null);
+
+    try {
+      const creada = await createSubtask(eventoId, {
+        titulo: campos.titulo.trim(),
+        fecha_objetivo: campos.fecha_objetivo,
+        horas_estimadas: horasDisponibles,
+      });
+
+      onCreada(creada);
+      setUltimaAgregada(creada.titulo);
+      setCampos(nuevaGestionVacia());
+      setEstado('idle');
+      focusField('nueva-titulo');
+    } catch (err) {
+      setEstado('idle');
+
+      if (err.status === 409 && err.conflicto) {
+        setConflicto(err.conflicto);
+        return;
+      }
+
+      const fe = err.fieldErrors || {};
+      let campo = null;
+
+      if (fe.titulo) campo = 'titulo';
+      else if (fe.fecha_objetivo) campo = 'fecha';
+      else if (fe.horas_estimadas) campo = 'horas';
+
       setErrorField(campo);
       setError(mensajeError(err, 'No pudimos agregar la gestión.'));
       if (campo) focusField(`nueva-${campo}`);
     }
   }
+
+  function volverAEditar() {
+    setConflicto(null);
+    setFechaPropuesta(null);
+    setErrorFechaPropuesta(null);
+    focusField('nueva-fecha');
+  }
+
 
   if (!abierto) {
     return (
@@ -943,10 +1553,9 @@ function NuevaGestionForm({ eventoId, onCreada }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="nueva-titulo" className={LABEL}>Título</label>
-        <input
+        <InputIcono icon="edit_calendar"
           id="nueva-titulo"
           type="text"
-          className={`${INPUT} pl-4`}
           placeholder="Ej: Reservar salón"
           value={campos.titulo}
           disabled={estado === 'guardando'}
@@ -959,10 +1568,9 @@ function NuevaGestionForm({ eventoId, onCreada }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor="nueva-fecha" className={LABEL}>Fecha objetivo</label>
-          <input
+          <InputIcono icon="calendar_month"
             id="nueva-fecha"
             type="date"
-            className={`${INPUT} pl-4`}
             value={campos.fecha_objetivo}
             disabled={estado === 'guardando'}
             onChange={(e) => actualizarCampo('fecha_objetivo', e.target.value)}
@@ -972,12 +1580,11 @@ function NuevaGestionForm({ eventoId, onCreada }) {
         </div>
         <div className="flex flex-col gap-1">
           <label htmlFor="nueva-horas" className={LABEL}>Horas estimadas</label>
-          <input
+          <InputIcono icon="timer"
             id="nueva-horas"
             type="number"
             min="0.5"
             step="0.5"
-            className={`${INPUT} pl-4`}
             value={campos.horas_estimadas}
             disabled={estado === 'guardando'}
             onChange={(e) => actualizarCampo('horas_estimadas', e.target.value)}
@@ -1014,6 +1621,161 @@ function NuevaGestionForm({ eventoId, onCreada }) {
           Cerrar
         </button>
       </div>
+      
+      {conflicto && (
+        <div
+          ref={conflictoDialogRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="conflicto-heading-nueva"
+          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
+        >
+          <h3
+            id="conflicto-heading-nueva"
+            ref={conflictoHeadingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+          >
+            Hay un conflicto de planificación
+          </h3>
+
+          <p className="text-sm text-[#181b27] mb-3">
+            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <strong>{conflicto.fecha}</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <strong>{conflicto.horas_ya_planificadas} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <strong>{conflicto.horas_gestion} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <strong>{conflicto.horas_total} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <strong>{conflicto.limite_diario} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
+              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
+              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#7a7580]">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+          </div>
+
+          <div className="mt-4 flex gap-3 flex-wrap">
+            
+          {Number(conflicto.horas_disponibles) > 0 ? (
+            <button
+              type="button"
+              className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+              onClick={resolverReduciendoHoras}
+              disabled={estado === 'guardando'}
+            >
+              Reducir a {conflicto.horas_disponibles} h y guardar
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+              onClick={buscarProximaFecha}
+              disabled={estado === 'guardando' || buscandoFecha}
+            >
+              {buscandoFecha
+                ? 'Buscando fecha…'
+                : 'Mover a la próxima fecha disponible'}
+            </button>
+          )}
+          
+          {fechaPropuesta && (
+            <div className="mt-3 rounded-lg border border-[#e5e7f8] bg-white p-3">
+              <p className="text-sm text-[#181b27]">
+                Próxima fecha disponible:
+                <strong className="ml-1">{fechaPropuesta}</strong>
+              </p>
+              <p className="mt-1 text-xs text-[#7a7580]">
+                Revisa la fecha antes de confirmar el cambio.
+              </p>
+            </div>
+          )}
+
+          
+          {fechaPropuesta && (
+            <button
+              type="button"
+              className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+              disabled={estado === 'guardando'}
+              onClick={async () => {
+                setEstado('guardando');
+                setError(null);
+
+                try {
+                  const creada = await createSubtask(eventoId, {
+                    titulo: campos.titulo.trim(),
+                    fecha_objetivo: fechaPropuesta,
+                    horas_estimadas: campos.horas_estimadas,
+                  });
+
+                  onCreada(creada);
+                  setUltimaAgregada(creada.titulo);
+                  setCampos(nuevaGestionVacia());
+                  setConflicto(null);
+                  setFechaPropuesta(null);
+                  setErrorFechaPropuesta(null);
+                  setEstado('idle');
+                  focusField('nueva-titulo');
+                } catch (err) {
+                  setEstado('idle');
+
+                  if (err.status === 409 && err.conflicto) {
+                    setConflicto(err.conflicto);
+                    setFechaPropuesta(null);
+                    return;
+                  }
+
+                  setError(mensajeError(err, 'No pudimos agregar la gestión.'));
+                }
+              }}
+            >
+              Confirmar fecha y guardar
+            </button>
+          )}
+
+
+          {errorFechaPropuesta && (
+            <p className="mt-3 text-sm text-[#ba1a1a]" role="alert">
+              {errorFechaPropuesta}
+            </p>
+          )}
+            <button
+              type="button"
+              className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+              onClick={volverAEditar}
+              disabled={estado === 'guardando'}
+            >
+              Volver a editar
+            </button>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
