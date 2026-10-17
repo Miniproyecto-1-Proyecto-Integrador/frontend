@@ -42,7 +42,7 @@ export function EstadoProgreso({ status, datos, onReintentar }) {
   if (!datos || datos.total_subtareas === 0) {
     return (
       <p className="flex items-center gap-2 text-sm italic text-[#49454f]">
-        <span className="material-symbols-outlined text-[20px] text-[#7a7580]" aria-hidden="true">playlist_add</span>
+        <span className="material-symbols-outlined text-[20px] text-[#625d66]" aria-hidden="true">playlist_add</span>
         {MC.progreso.vacio}
       </p>
     );

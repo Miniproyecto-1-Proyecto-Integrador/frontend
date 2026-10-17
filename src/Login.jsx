@@ -11,6 +11,7 @@ import {
 } from './components/ui';
 import { useAuth } from './context/AuthContext';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
+import { useTituloPagina } from './helpers/useTituloPagina';
 
 // Puntos del panel morado (solo decorativo, visible desde lg).
 const BENEFICIOS = [
@@ -20,6 +21,7 @@ const BENEFICIOS = [
 ];
 
 export default function Login() {
+  useTituloPagina('Iniciar sesión');
   const { status, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,7 +99,7 @@ export default function Login() {
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/70">Organizador de eventos</p>
+        <p className="relative text-xs text-white/90">Organizador de eventos</p>
       </aside>
 
       {/* Columna del formulario, con manchas de color suaves detrás */}

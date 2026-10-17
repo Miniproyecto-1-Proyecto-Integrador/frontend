@@ -9,6 +9,7 @@ import {
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 import { GestionEstado } from './components/EstadoGestion';
 import { MC } from './helpers/microcopy';
+import { useTituloPagina } from './helpers/useTituloPagina';
 import { getHoy, listEvents, listSubtasks } from './services/events';
 
 // El orden de los grupos en pantalla es fijo. El orden DENTRO de cada grupo
@@ -81,6 +82,8 @@ function mensajeDeError(err) {
 }
 
 export default function Hoy() {
+  useTituloPagina('Hoy');
+
   // Los filtros viven en la URL: se pueden recargar, compartir y volver con "atrás".
   const [params, setParams] = useSearchParams();
   const estadoParam = params.get('estado') || '';
@@ -304,7 +307,7 @@ export default function Hoy() {
 
       {status === 'ok' && data.total === 0 && (
         <div className={`${CARD} items-center text-center py-10`}>
-          <span className="material-symbols-outlined text-[32px] text-[#7a7580]" aria-hidden="true">
+          <span className="material-symbols-outlined text-[32px] text-[#625d66]" aria-hidden="true">
             {hayFiltros ? 'search_off' : 'task_alt'}
           </span>
           <p className="text-[#49454f] italic">
@@ -347,9 +350,9 @@ export default function Hoy() {
                     return (
                       <li key={g.id} className={`${CARD} !p-4 sm:!p-5 !gap-3`}>
                         <div className="flex min-w-0 flex-col gap-1">
-                          <span className={`${FONT_HEADLINE} font-bold text-[#181b27] ${hecha ? 'line-through' : ''}`}>
+                          <h3 className={`${FONT_HEADLINE} font-bold text-[#181b27] ${hecha ? 'line-through' : ''}`}>
                             {g.titulo}
-                          </span>
+                          </h3>
                           <span className="text-sm text-[#49454f]">
                             <Link
                               to={`/evento/${g.evento_id}`}

@@ -15,7 +15,7 @@ export const CARD_HEADER_ICON =
 export const INPUT_WRAP = 'relative flex items-center';
 
 export const INPUT_ICON =
-  'material-symbols-outlined absolute left-3.5 text-[#7a7580] text-[20px] pointer-events-none';
+  'material-symbols-outlined absolute left-3.5 text-[#625d66] text-[20px] pointer-events-none';
 
 export const INPUT =
   'w-full pl-11 pr-4 py-2.5 rounded-xl border border-[#e5e7f8] bg-white text-[#181b27] text-sm ' +
@@ -52,7 +52,8 @@ export const PILL_INACTIVE =
   'border-[#e5e7f8] bg-[#f2f3ff] text-[#49454f] hover:bg-[#ebedfe] hover:text-[#181b27]';
 
 export function Icon({ name, className = '' }) {
-  return <span className={`material-symbols-outlined ${className}`}>{name}</span>;
+  // Decorativo: el nombre del glifo ("today", "close"…) no debe leerse en voz alta.
+  return <span className={`material-symbols-outlined ${className}`} aria-hidden="true">{name}</span>;
 }
 
 export function InputIcono({ icon, className = '', ...props }) {
