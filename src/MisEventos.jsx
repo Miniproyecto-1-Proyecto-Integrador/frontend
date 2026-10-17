@@ -5,6 +5,7 @@ import {
   FONT_HEADLINE, CARD, CARD_HEADER_ICON, BOTON_PRINCIPAL,
 } from './components/ui';
 import SuccessModal from './components/SuccessCard';
+import { useTituloPagina } from './helpers/useTituloPagina';
 
 function formatFechaHora(iso) {
   if (!iso) return '';
@@ -16,6 +17,7 @@ function formatFechaHora(iso) {
 // Listado plano de eventos: solo GET /api/events/ + link al detalle.
 // Esta vista existe solo para poder navegar a los eventos ya creados sin saber su id de memoria.
 export default function MisEventos() {
+  useTituloPagina('Mis eventos');
   const [status, setStatus] = useState('loading'); // loading | ok | empty | error
   const [eventos, setEventos] = useState([]);
 
@@ -79,7 +81,7 @@ export default function MisEventos() {
             Mis eventos
           </h1>
           {status === 'ok' && (
-            <p className="text-sm text-[#7a7580]">
+            <p className="text-sm text-[#625d66]">
               {eventos.length} {eventos.length === 1 ? 'evento registrado' : 'eventos registrados'}
             </p>
           )}
@@ -101,7 +103,7 @@ export default function MisEventos() {
           {/* Barra de búsqueda: solo filtra localmente lo que ya se cargó */}
           <div className="relative">
             <span
-              className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-[#7a7580] pointer-events-none"
+              className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-[#625d66] pointer-events-none"
               aria-hidden="true"
             >
               search
@@ -112,13 +114,13 @@ export default function MisEventos() {
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por nombre, tipo o lugar…"
               aria-label="Buscar en mis eventos"
-              className="w-full rounded-full border border-[#ebedfe] bg-[#faf8ff] pl-11 pr-4 py-3 text-sm text-[#181b27] placeholder:text-[#7a7580] outline-none transition-shadow focus:border-[#63518b] focus:ring-[3px] focus:ring-[#63518b]/20"
+              className="w-full rounded-full border border-[#ebedfe] bg-[#faf8ff] pl-11 pr-4 py-3 text-sm text-[#181b27] placeholder:text-[#625d66] outline-none transition-shadow focus:border-[#63518b] focus:ring-[3px] focus:ring-[#63518b]/20 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]"
             />
           </div>
 
           {eventosFiltrados.length === 0 ? (
             <div className={`${CARD} items-center text-center py-8`}>
-              <span className="material-symbols-outlined text-[28px] text-[#7a7580]" aria-hidden="true">search_off</span>
+              <span className="material-symbols-outlined text-[28px] text-[#625d66]" aria-hidden="true">search_off</span>
               <p className="text-[#49454f] italic">
                 Ningún evento coincide con "{busqueda}".
               </p>
@@ -129,7 +131,7 @@ export default function MisEventos() {
                 <li key={ev.id}>
                   <Link
                     to={`/evento/${ev.id}`}
-                    className={`${CARD} group block hover:border-[#63518b] hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 no-underline`}
+                    className={`${CARD} group block hover:border-[#63518b] hover:shadow-md hover:-translate-y-0.5 transition-all duration-150 no-underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`${CARD_HEADER_ICON} transition-colors group-hover:bg-[#63518b] group-hover:text-white`}>
@@ -137,12 +139,12 @@ export default function MisEventos() {
                       </div>
                       <div className="flex flex-col min-w-0">
                         <span className={`${FONT_HEADLINE} font-bold text-[#181b27] truncate`}>{ev.nombre}</span>
-                        <span className="text-xs text-[#7a7580] truncate">
+                        <span className="text-xs text-[#625d66] truncate">
                           {ev.tipo} · {formatFechaHora(ev.fecha_hora)} · {ev.lugar}
                         </span>
                       </div>
                       <span
-                        className="material-symbols-outlined ml-auto text-[20px] text-[#7a7580] opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0"
+                        className="material-symbols-outlined ml-auto text-[20px] text-[#625d66] opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0"
                         aria-hidden="true"
                       >
                         arrow_forward

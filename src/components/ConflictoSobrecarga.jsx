@@ -47,7 +47,7 @@ function Dato({ etiqueta, valor, peligro = false }) {
         peligro ? 'border-[#ba1a1a]/20 bg-[#ffdad6]/30' : 'border-[#e5e7f8] bg-white'
       }`}
     >
-      <span className={`block text-xs ${peligro ? 'text-[#ba1a1a]' : 'text-[#7a7580]'}`}>{etiqueta}</span>
+      <span className={`block text-xs ${peligro ? 'text-[#ba1a1a]' : 'text-[#625d66]'}`}>{etiqueta}</span>
       <strong className={peligro ? 'text-[#ba1a1a]' : undefined}>{valor}</strong>
     </div>
   );

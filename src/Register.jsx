@@ -133,7 +133,7 @@ export default function Register() {
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/70">Organizador de eventos</p>
+        <p className="relative text-xs text-white/90">Organizador de eventos</p>
       </aside>
 
       {/* Columna del formulario */}

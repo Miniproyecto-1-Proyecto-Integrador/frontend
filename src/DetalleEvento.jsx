@@ -31,6 +31,7 @@ import {
 import { GestionEstado } from './components/EstadoGestion';
 import ProgresoBarra from './components/ProgresoBarra';
 import { MC } from './helpers/microcopy';
+import { useTituloPagina } from './helpers/useTituloPagina';
 
 
 const TIPOS_SUGERIDOS = ['Boda', 'Social', 'Corporativo', 'Cumpleaños', 'Otro'];
@@ -78,6 +79,8 @@ export default function DetalleEvento() {
   const [pageStatus, setPageStatus] = useState('loading'); // loading | ok | notfound | error
   const [evento, setEvento] = useState(null);
   const [subtareas, setSubtareas] = useState([]);
+
+  useTituloPagina(evento ? evento.nombre : 'Evento');
 
   // Modal de éxito/error compartido por toda la vista: fondo difuminado,
   // focus trap y un único botón (Aceptar o Reintentar, según variant) en
@@ -132,6 +135,7 @@ export default function DetalleEvento() {
   if (pageStatus === 'notfound') {
     return (
       <div className={CARD}>
+        <h1 className={`${FONT_HEADLINE} text-2xl font-extrabold text-[#181b27]`}>Evento no encontrado</h1>
         <p role="alert">El evento no existe.</p>
         <Link to="/crear" className={`${BOTON_SECUNDARIO} self-start`}>Crear un evento nuevo</Link>
       </div>
@@ -154,10 +158,16 @@ export default function DetalleEvento() {
 
   return (
     <div className="flex flex-col gap-2 pb-16">
-      <nav aria-label="Ruta de navegación" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#7a7580] mb-2 flex-wrap">
-        <Link to="/evento" className="hover:underline">Mis Eventos</Link>
-        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
-        <span className="text-[#63518b] font-bold" aria-current="page">{evento.nombre}</span>
+      <nav aria-label="Ruta de navegación" className="mb-2">
+        <ol className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#625d66] flex-wrap">
+          <li>
+            <Link to="/evento" className="underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]">Mis Eventos</Link>
+          </li>
+          <li className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">chevron_right</span>
+            <span className="text-[#63518b] font-bold" aria-current="page">{evento.nombre}</span>
+          </li>
+        </ol>
       </nav>
 
       {/* Cabecera con un leve acento decorativo detrás del título — el único
@@ -205,7 +215,7 @@ export default function DetalleEvento() {
                 Plan logístico
               </h2>
               {subtareas.length > 0 && (
-                <p className="text-xs text-[#7a7580]">
+                <p className="text-xs text-[#625d66]">
                   {subtareas.length} {subtareas.length === 1 ? 'gestión' : 'gestiones'} en el plan
                 </p>
               )}
@@ -214,28 +224,31 @@ export default function DetalleEvento() {
 
           {subtareas.length === 0 && (
             <div className="flex flex-col items-center text-center gap-2 py-6">
-              <span className="material-symbols-outlined text-[28px] text-[#7a7580]" aria-hidden="true">playlist_add</span>
+              <span className="material-symbols-outlined text-[28px] text-[#625d66]" aria-hidden="true">playlist_add</span>
               <p className="text-[#49454f] italic">Este evento no tiene gestiones logísticas todavía.</p>
             </div>
           )}
 
-          <div className="flex flex-col gap-3" aria-label={`${subtareas.length} gestiones logísticas`}>
-            {subtareas.map((s) => (
-              <SubtareaCard
-                key={s.id}
-                eventoId={id}
-                subtarea={s}
-                onGuardada={(actualizada) =>
-                  setSubtareas((prev) => prev.map((x) => (x.id === actualizada.id ? actualizada : x)))
-                }
-                onEliminada={(idEliminado) => {
-                  setSubtareas((prev) => prev.filter((x) => x.id !== idEliminado));
-                  planHeadingRef.current?.focus();
-                }}
-                onFeedback={mostrarFeedback}
-              />
-            ))}
-          </div>
+          {subtareas.length > 0 && (
+            <ul className="flex flex-col gap-3" aria-label={`${subtareas.length} gestiones logísticas`}>
+              {subtareas.map((s) => (
+                <li key={s.id}>
+                  <SubtareaCard
+                    eventoId={id}
+                    subtarea={s}
+                    onGuardada={(actualizada) =>
+                      setSubtareas((prev) => prev.map((x) => (x.id === actualizada.id ? actualizada : x)))
+                    }
+                    onEliminada={(idEliminado) => {
+                      setSubtareas((prev) => prev.filter((x) => x.id !== idEliminado));
+                      planHeadingRef.current?.focus();
+                    }}
+                    onFeedback={mostrarFeedback}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
 
           <NuevaGestionForm
             eventoId={id}
@@ -408,20 +421,32 @@ function EventoCard({ evento, onGuardado, onEliminado, onFeedback }) {
 
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">sell</span>
-            <p><dt className="inline text-[#7a7580]">Tipo:</dt> <dd className="inline font-semibold">{evento.tipo}</dd></p>
+            <dt className="inline-flex items-center gap-2 text-[#625d66]">
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">sell</span>
+              Tipo:
+            </dt>
+            <dd className="min-w-0 break-words font-semibold">{evento.tipo}</dd>
           </div>
           <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">calendar_month</span>
-            <p><dt className="inline text-[#7a7580]">Fecha:</dt> <dd className="inline font-semibold">{fechaInicial} {horaInicial}</dd></p>
+            <dt className="inline-flex items-center gap-2 text-[#625d66]">
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_month</span>
+              Fecha:
+            </dt>
+            <dd className="min-w-0 break-words font-semibold">{fechaInicial} {horaInicial}</dd>
           </div>
           <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">person</span>
-            <p><dt className="inline text-[#7a7580]">Contacto:</dt> <dd className="inline font-semibold">{evento.cliente_contacto}</dd></p>
+            <dt className="inline-flex items-center gap-2 text-[#625d66]">
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">person</span>
+              Contacto:
+            </dt>
+            <dd className="min-w-0 break-words font-semibold">{evento.cliente_contacto}</dd>
           </div>
           <div className="flex items-start gap-2">
-            <span className="material-symbols-outlined text-[18px] text-[#7a7580] mt-0.5" aria-hidden="true">pin_drop</span>
-            <p><dt className="inline text-[#7a7580]">Lugar:</dt> <dd className="inline font-semibold">{evento.lugar}</dd></p>
+            <dt className="inline-flex items-center gap-2 text-[#625d66]">
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">pin_drop</span>
+              Lugar:
+            </dt>
+            <dd className="min-w-0 break-words font-semibold">{evento.lugar}</dd>
           </div>
         </dl>
 
@@ -937,11 +962,11 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   if (modo === 'ver') {
     return (
       <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3 transition-shadow hover:shadow-sm">
-        <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
           <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
           {subtarea.titulo}
-        </div>
-        <p className="text-xs text-[#7a7580] flex items-center gap-3 flex-wrap">
+        </h3>
+        <p className="text-xs text-[#625d66] flex items-center gap-3 flex-wrap">
           <span className="inline-flex items-center gap-1">
             <span className="material-symbols-outlined text-[14px]" aria-hidden="true">event</span>
             {subtarea.fecha_objetivo}
@@ -1118,10 +1143,10 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       noValidate
       aria-label={`Editar gestión: ${subtarea.titulo}`}
     >
-      <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
         <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">edit</span>
         Editar gestión
-      </div>
+      </h3>
 
       <div className="flex flex-col gap-1">
         <label htmlFor={`sub-titulo-${subtarea.id}`} className={LABEL}>Título</label>
@@ -1190,27 +1215,27 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <span className="block text-xs text-[#625d66]">Fecha</span>
               <strong>{conflicto.fecha}</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <span className="block text-xs text-[#625d66]">Horas ya planificadas</span>
               <strong>{conflicto.horas_ya_planificadas} h</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <span className="block text-xs text-[#625d66]">Horas de esta gestión</span>
               <strong>{conflicto.horas_gestion} h</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <span className="block text-xs text-[#625d66]">Total planificado</span>
               <strong>{conflicto.horas_total} h</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <span className="block text-xs text-[#625d66]">Límite diario</span>
               <strong>{conflicto.limite_diario} h</strong>
             </div>
 
@@ -1221,13 +1246,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           </div>
 
           <div className="mt-4">
-            <p className="text-xs text-[#7a7580]">
-              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
-            </p>
-          </div>
-
-          <div className="mt-4">
-            <p className="text-xs text-[#7a7580] mb-3">
+            <p className="text-xs text-[#625d66] mb-3">
               Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
             </p>
 
@@ -1277,7 +1296,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
                   Próxima fecha disponible:
                   <strong className="ml-1">{fechaPropuesta}</strong>
                 </p>
-                <p className="mt-1 text-xs text-[#7a7580]">
+                <p className="mt-1 text-xs text-[#625d66]">
                   Revisa la fecha antes de confirmar el cambio.
                 </p>
               </div>
@@ -1528,7 +1547,6 @@ async function buscarProximaFecha() {
         className={`${BOTON_SECUNDARIO} self-start flex items-center gap-2`}
         onClick={() => setAbierto(true)}
         aria-expanded={false}
-        aria-controls={FORM_ID}
       >
         <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add_circle</span>
         Agregar gestión
@@ -1546,10 +1564,10 @@ async function buscarProximaFecha() {
       aria-label="Nueva gestión logística"
       className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3"
     >
-      <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
         <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">add_task</span>
         Nueva gestión
-      </div>
+      </h3>
 
       <div className="flex flex-col gap-1">
         <label htmlFor="nueva-titulo" className={LABEL}>Título</label>
@@ -1645,27 +1663,27 @@ async function buscarProximaFecha() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Fecha</span>
+              <span className="block text-xs text-[#625d66]">Fecha</span>
               <strong>{conflicto.fecha}</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Horas ya planificadas</span>
+              <span className="block text-xs text-[#625d66]">Horas ya planificadas</span>
               <strong>{conflicto.horas_ya_planificadas} h</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Horas de esta gestión</span>
+              <span className="block text-xs text-[#625d66]">Horas de esta gestión</span>
               <strong>{conflicto.horas_gestion} h</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Total planificado</span>
+              <span className="block text-xs text-[#625d66]">Total planificado</span>
               <strong>{conflicto.horas_total} h</strong>
             </div>
 
             <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#7a7580]">Límite diario</span>
+              <span className="block text-xs text-[#625d66]">Límite diario</span>
               <strong>{conflicto.limite_diario} h</strong>
             </div>
 
@@ -1676,7 +1694,7 @@ async function buscarProximaFecha() {
           </div>
 
           <div className="mt-4">
-            <p className="text-xs text-[#7a7580]">
+            <p className="text-xs text-[#625d66]">
               Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
             </p>
           </div>
@@ -1711,7 +1729,7 @@ async function buscarProximaFecha() {
                 Próxima fecha disponible:
                 <strong className="ml-1">{fechaPropuesta}</strong>
               </p>
-              <p className="mt-1 text-xs text-[#7a7580]">
+              <p className="mt-1 text-xs text-[#625d66]">
                 Revisa la fecha antes de confirmar el cambio.
               </p>
             </div>

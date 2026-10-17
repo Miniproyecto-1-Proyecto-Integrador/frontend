@@ -14,6 +14,22 @@ body {
   input[type="radio"]:not(:disabled) {
     cursor: pointer;
   }
+
+  /* Placeholder con contraste suficiente (WCAG 1.4.3). Por defecto Tailwind lo
+     pinta al 50 % de opacidad, lo que queda por debajo de 4.5:1 sobre blanco. */
+  ::placeholder {
+    color: #625d66;
+    opacity: 1;
+  }
+
+  /* Foco visible en cualquier elemento interactivo que no defina el suyo
+     (enlaces, summary, etc.). WCAG 2.4.7. */
+  a:focus-visible,
+  summary:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid #63518b;
+    outline-offset: 2px;
+  }
 }
 
 .material-symbols-outlined {
@@ -27,4 +43,17 @@ body {
   justify-content: center;
   height: 100vh;
   font-size: 1.25rem;
+}
+
+/* Respeta la preferencia del sistema "reducir movimiento" (WCAG 2.3.3):
+   quita animaciones y transiciones, incluidos el drawer y los spinners. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

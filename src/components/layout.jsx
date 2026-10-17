@@ -4,12 +4,9 @@ import { useAuth } from '../context/AuthContext';
 import { useFocusTrap } from '../helpers/UseFocusTrap';
 import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
 
-// "Hoy" y "Progreso y Métricas" todavía no existen como pantallas —
-// se muestran deshabilitadas para no simular navegación a algo que no
-// está construido (US-04/US-10, sprints futuros).
-// "Mis Eventos" sí está activa: apunta a /evento, un listado plano
-// (GET /api/events/) que no implementa nada de US-04 — solo permite
-// navegar a los eventos que ya existen.
+// Todas las opciones del menú están activas: cada una apunta a una pantalla
+// que ya existe. "Mis Eventos" apunta a /evento, un listado plano
+// (GET /api/events/) que permite navegar a los eventos ya creados.
 const NAV_ITEMS = [
   { to: '/hoy', label: 'Hoy', icon: 'today' },
   { to: '/crear', label: 'Crear Evento', icon: 'add_circle' },
@@ -17,6 +14,9 @@ const NAV_ITEMS = [
   { to: '/configuracion', label: 'Configuración', icon: 'settings' },
   { to: '/progreso', label: 'Progreso y Métricas', icon: 'query_stats' },
 ];
+
+const FOCO =
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]';
 
 export default function Layout() {
   // El sidebar es fijo y siempre visible desde el breakpoint lg. Por debajo
@@ -35,6 +35,7 @@ export default function Layout() {
 
   const sidebarRef = useRef(null);
   const menuBtnRef = useRef(null);
+  const cerrarMenuBtnRef = useRef(null);
 
   // Cierra el drawer automáticamente al navegar a otra ruta (por ejemplo,
   // tras tocar "Mis Eventos" en mobile).
@@ -54,12 +55,18 @@ export default function Layout() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [menuAbierto]);
 
+  // Al abrir el drawer el foco entra al menú (botón de cerrar); así quien usa
+  // teclado o lector de pantalla no se queda detrás del fondo oscuro.
+  useEffect(() => {
+    if (menuAbierto) cerrarMenuBtnRef.current?.focus();
+  }, [menuAbierto]);
+
   // El focus trap solo debe actuar cuando el sidebar se comporta como
   // drawer modal (mobile + abierto). En desktop el sidebar es parte fija
   // del layout, no un diálogo, así que no atrapamos el foco ahí.
   useFocusTrap(menuAbierto, sidebarRef);
 
-    // Menú del perfil (nombre + flecha). Es un botón con aria-expanded que
+  // Menú del perfil (nombre + flecha). Es un botón con aria-expanded que
   // muestra u oculta un panel con los datos del usuario y "Cerrar sesión".
   const [perfilAbierto, setPerfilAbierto] = useState(false);
   const perfilRef = useRef(null);
@@ -99,6 +106,22 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-[#faf8ff] text-[#181b27]">
+      {/* Enlace para saltar la navegación (WCAG 2.4.1). Solo se ve al recibir
+          el foco con Tab; lleva directo al contenido principal. */}
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-xl focus:bg-[#63518b] focus:px-5 focus:py-3 focus:text-sm focus:font-bold focus:text-white focus:shadow-lg focus:outline focus:outline-[3px] focus:outline-offset-2 focus:outline-[#3d3163]"
+        onClick={(e) => {
+          // En una SPA el hash por sí solo no siempre mueve el foco: lo hacemos a mano.
+          e.preventDefault();
+          const destino = document.getElementById('contenido');
+          destino?.focus();
+          destino?.scrollIntoView();
+        }}
+      >
+        Saltar al contenido principal
+      </a>
+
       {/* Fondo oscuro del drawer: solo aparece en mobile mientras el menú
           está abierto; en lg y superior el sidebar ya es fijo y esto nunca
           se renderiza como bloqueante. */}
@@ -110,13 +133,17 @@ export default function Layout() {
         />
       )}
 
-      <aside
+      {/* Mientras el drawer está cerrado en mobile se oculta con `invisible`:
+          así sus enlaces salen del orden de Tab y del árbol de accesibilidad
+          (antes seguían enfocables aunque estuvieran fuera de pantalla).
+          Todo el sidebar es UN solo landmark de navegación (<nav>): antes era
+          un <aside role="navigation"> con otro <nav> adentro. */}
+      <nav
         ref={sidebarRef}
         id="sidebar-nav"
-        role="navigation"
         aria-label="Navegación principal"
-        className={`fixed left-0 top-0 h-full w-72 bg-white border-r border-[#e5e7f8] shadow-[0_1px_8px_rgba(0,0,0,0.03)] z-50 flex flex-col gap-6 py-6 transition-transform duration-200 ${
-          menuAbierto ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed left-0 top-0 h-full w-72 bg-white border-r border-[#e5e7f8] shadow-[0_1px_8px_rgba(0,0,0,0.03)] z-50 flex flex-col gap-6 py-6 transition-[transform,visibility] duration-200 ${
+          menuAbierto ? 'translate-x-0 visible' : '-translate-x-full max-lg:invisible'
         } lg:translate-x-0`}
       >
         <div className="px-6 flex items-center justify-between gap-3">
@@ -129,8 +156,9 @@ export default function Layout() {
           {/* Botón de cierre, solo visible en mobile: en desktop el sidebar
               siempre está abierto, así que no tiene sentido cerrarlo. */}
           <button
+            ref={cerrarMenuBtnRef}
             type="button"
-            className="lg:hidden p-1.5 rounded-lg text-[#7a7580] hover:bg-[#f2f3ff] hover:text-[#181b27] transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2"
+            className={`lg:hidden p-1.5 rounded-lg text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27] transition-colors ${FOCO}`}
             onClick={() => { setMenuAbierto(false); menuBtnRef.current?.focus(); }}
             aria-label="Cerrar menú"
           >
@@ -138,38 +166,23 @@ export default function Layout() {
           </button>
         </div>
 
-        <nav className="flex flex-col gap-1.5 px-4">
-          {NAV_ITEMS.map((item) =>
-            item.disabled ? (
-              <span
-                key={item.label}
-                className="flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold text-[#49454f] cursor-not-allowed select-none"
-                title="Todavía no está disponible"
-                aria-disabled="true"
-              >
-                <span className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
-                  {item.label}
-                </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider">Pronto</span>
-              </span>
-            ) : (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    isActive ? 'bg-[#7c69a5] text-white shadow-sm' : 'text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27]'
-                  }`
-                }
-              >
-                <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
-                {item.label}
-              </NavLink>
-            )
-          )}
-        </nav>
-      </aside>
+        <div className="flex flex-col gap-1.5 px-4">
+          {NAV_ITEMS.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${FOCO} ${
+                  isActive ? 'bg-[#7c69a5] text-white shadow-sm' : 'text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27]'
+                }`
+              }
+            >
+              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
 
       <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-white/90 backdrop-blur-md border-b border-[#e5e7f8] shadow-[0_1px_8px_rgba(0,0,0,0.03)] z-30 flex items-center justify-between lg:justify-end px-4 sm:px-8">
         {/* Botón hamburguesa: solo existe por debajo de lg, ya que en
@@ -177,7 +190,7 @@ export default function Layout() {
         <button
           ref={menuBtnRef}
           type="button"
-          className="lg:hidden p-2 -ml-2 rounded-lg text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27] transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2"
+          className={`lg:hidden p-2 -ml-2 rounded-lg text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27] transition-colors ${FOCO}`}
           onClick={() => setMenuAbierto(true)}
           aria-label="Abrir menú"
           aria-expanded={menuAbierto}
@@ -186,14 +199,16 @@ export default function Layout() {
         </button>
 
         <div ref={perfilRef} className="relative">
+          {/* aria-controls solo cuando el panel existe en el DOM: apuntar a un
+              id inexistente es una referencia ARIA rota. */}
           <button
             ref={perfilBtnRef}
             type="button"
             onClick={() => setPerfilAbierto((v) => !v)}
             aria-expanded={perfilAbierto}
-            aria-controls="menu-perfil"
+            aria-controls={perfilAbierto ? 'menu-perfil' : undefined}
             aria-label={`Menú de ${user?.username || 'usuario'}`}
-            className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#f2f3ff] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]">
+            className={`flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#f2f3ff] ${FOCO}`}>
             <span className="w-9 h-9 rounded-full bg-[#eaddff] text-[#63518b] flex items-center justify-center">
               <span className="material-symbols-outlined text-[20px]" aria-hidden="true">person</span>
             </span>
@@ -236,7 +251,12 @@ export default function Layout() {
       </header>
 
       <div className="lg:pl-72 pt-16">
-        <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* tabIndex=-1: recibe el foco del enlace "Saltar al contenido", pero no entra en el orden de Tab. */}
+        <main
+          id="contenido"
+          tabIndex={-1}
+          className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 focus:outline-none"
+        >
           <Outlet />
         </main>
       </div>

@@ -132,7 +132,7 @@ export default function ProgresoGeneral({ resumen, onReintentar }) {
     return (
       <TarjetaSimple>
         <p className="flex items-center gap-2 py-4 text-sm italic text-[#49454f]">
-          <span className="material-symbols-outlined text-[20px] text-[#7a7580]" aria-hidden="true">playlist_add</span>
+          <span className="material-symbols-outlined text-[20px] text-[#625d66]" aria-hidden="true">playlist_add</span>
           {MC.progresoGeneral.vacio}
         </p>
         {fallidos > 0 && <AvisoParcial cargados={cargados} eventos={eventos} onReintentar={onReintentar} />}

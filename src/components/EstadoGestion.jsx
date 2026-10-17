@@ -168,7 +168,7 @@ export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionIn
             className={`${BOTON_SECUNDARIO} ${compacto}`}
             disabled={guardando}
             aria-expanded={formAbierto}
-            aria-controls={`posponer-${gestion.id}`}
+            aria-controls={formAbierto ? `posponer-${gestion.id}` : undefined}
             onClick={() => (formAbierto ? textareaRef.current?.focus() : abrirForm())}
             aria-label={`Posponer: ${titulo}`}
           >

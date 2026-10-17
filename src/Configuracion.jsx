@@ -9,6 +9,7 @@ import {
   LABEL,
 } from './components/ui';
 import { MC } from './helpers/microcopy';
+import { useTituloPagina } from './helpers/useTituloPagina';
 import {
   cargaPorDia,
   diasSobrecargados,
@@ -21,6 +22,7 @@ import { getHoy, getLimiteDiario, updateLimiteDiario } from './services/events';
 const MAX_DIAS_VISIBLES = 5;
 
 export default function Configuracion() {
+  useTituloPagina('Configuración');
   const [limiteDiario, setLimiteDiario] = useState('6');
   const [limiteGuardado, setLimiteGuardado] = useState(null);
   const [hoyData, setHoyData] = useState(null); // gestiones pendientes, para avisar de sobrecarga
@@ -177,7 +179,7 @@ export default function Configuracion() {
 
           <div className="relative">
             <span
-              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#7a7580] pointer-events-none"
+              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#625d66] pointer-events-none"
               aria-hidden="true"
             >
               schedule

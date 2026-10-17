@@ -4,6 +4,7 @@ import { EstadoProgreso } from './components/ProgresoBarra';
 import ProgresoGeneral from './components/ProgresoGeneral';
 import { BOTON_PRINCIPAL, CARD, FONT_HEADLINE } from './components/ui';
 import { MC } from './helpers/microcopy';
+import { useTituloPagina } from './helpers/useTituloPagina';
 import { getProgresoEvento, listEvents } from './services/events';
 
 // /progreso: arriba el progreso general (anillo + barra) y debajo una tarjeta por evento.
@@ -11,6 +12,7 @@ import { getProgresoEvento, listEvents } from './services/events';
 // (cada tarjeta maneja su propio cargando / error / "Reintentar") y el general se
 // calcula con esos mismos datos.
 export default function Progreso() {
+  useTituloPagina('Progreso');
   const [status, setStatus] = useState('loading'); // loading | ok | empty | error
   const [eventos, setEventos] = useState([]);
   const [progresos, setProgresos] = useState({}); // { [id]: { status, datos } }
@@ -97,7 +99,7 @@ export default function Progreso() {
 
       {status === 'empty' && (
         <div className={`${CARD} items-center text-center py-10`}>
-          <span className="material-symbols-outlined text-[32px] text-[#7a7580]" aria-hidden="true">event_available</span>
+          <span className="material-symbols-outlined text-[32px] text-[#625d66]" aria-hidden="true">event_available</span>
           <p className="text-[#49454f] italic">{MC.paginaProgreso.vacio}</p>
           <Link to="/crear" className={BOTON_PRINCIPAL}>{MC.paginaProgreso.crear}</Link>
         </div>

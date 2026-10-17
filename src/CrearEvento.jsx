@@ -16,6 +16,7 @@ import {
 import { AvisoSobrecarga, ConflictoSobrecarga } from './components/ConflictoSobrecarga';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 import { MC } from './helpers/microcopy';
+import { useTituloPagina } from './helpers/useTituloPagina';
 import {
   cargaPorDia,
   fechaLibreCercana,
@@ -49,6 +50,7 @@ function nuevaGestionVacia() {
  * refleja los errores que recibe en la respuesta (fieldErrors).
  */
 export default function CrearEvento() {
+  useTituloPagina('Crear evento');
   const navigate = useNavigate();
 
   // Datos del evento
@@ -368,19 +370,20 @@ export default function CrearEvento() {
                 </div>
                 <div>
                   <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Datos del evento</h2>
-                  <p className="text-xs text-[#7a7580]">Información principal del evento</p>
+                  <p className="text-xs text-[#625d66]">Información principal del evento. Los campos marcados con asterisco (*) son obligatorios.</p>
                 </div>
               </div>
 
               <div className="flex flex-col gap-5">
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="nombre" className={LABEL}>
-                    Nombre del evento <span className="text-[#ba1a1a]">*</span>
+                    Nombre del evento <span className="text-[#ba1a1a]" aria-hidden="true">*</span>
                   </label>
                   <div className={INPUT_WRAP}>
                     <span className={INPUT_ICON} aria-hidden="true">edit_calendar</span>
                     <input
                       id="nombre"
+                      aria-required="true"
                       type="text"
                       className={INPUT}
                       value={nombre}
@@ -393,7 +396,7 @@ export default function CrearEvento() {
                 </div>
 
                 <fieldset className="flex flex-col gap-2">
-                  <legend className={LABEL}>Tipo de evento <span className="text-[#ba1a1a]">*</span></legend>
+                  <legend className={LABEL}>Tipo de evento <span className="text-[#ba1a1a]" aria-hidden="true">*</span><span className="sr-only"> (obligatorio)</span></legend>
                   <div
                     id="tipo"
                     tabIndex={-1}
@@ -427,11 +430,12 @@ export default function CrearEvento() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="fecha" className={LABEL}>Fecha del evento <span className="text-[#ba1a1a]">*</span></label>
+                    <label htmlFor="fecha" className={LABEL}>Fecha del evento <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
                     <div className={INPUT_WRAP}>
                       <span className={INPUT_ICON} aria-hidden="true">calendar_month</span>
                       <input
                         id="fecha"
+                        aria-required="true"
                         type="date"
                         className={INPUT}
                         value={fecha}
@@ -442,11 +446,12 @@ export default function CrearEvento() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="hora" className={LABEL}>Hora del evento <span className="text-[#ba1a1a]">*</span></label>
+                    <label htmlFor="hora" className={LABEL}>Hora del evento <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
                     <div className={INPUT_WRAP}>
                       <span className={INPUT_ICON} aria-hidden="true">schedule</span>
                       <input
                         id="hora"
+                        aria-required="true"
                         type="time"
                         className={INPUT}
                         value={hora}
@@ -462,11 +467,12 @@ export default function CrearEvento() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="cliente_contacto" className={LABEL}>Contacto del cliente <span className="text-[#ba1a1a]">*</span></label>
+                  <label htmlFor="cliente_contacto" className={LABEL}>Contacto del cliente <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
                   <div className={INPUT_WRAP}>
                     <span className={INPUT_ICON} aria-hidden="true">person</span>
                     <input
                       id="cliente_contacto"
+                      aria-required="true"
                       type="text"
                       className={INPUT}
                       value={clienteContacto}
@@ -479,11 +485,12 @@ export default function CrearEvento() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="lugar" className={LABEL}>Lugar <span className="text-[#ba1a1a]">*</span></label>
+                  <label htmlFor="lugar" className={LABEL}>Lugar <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
                   <div className={INPUT_WRAP}>
                     <span className={INPUT_ICON} aria-hidden="true">pin_drop</span>
                     <input
                       id="lugar"
+                      aria-required="true"
                       type="text"
                       className={INPUT}
                       value={lugar}
@@ -506,7 +513,7 @@ export default function CrearEvento() {
                   </div>
                   <div>
                     <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>Plan logístico inicial</h2>
-                    <p className="text-xs text-[#7a7580]">Gestiones con su fecha y horas estimadas</p>
+                    <p className="text-xs text-[#625d66]">Gestiones con su fecha y horas estimadas</p>
                   </div>
                 </div>
                 <span className="inline-flex items-center px-3 py-1 rounded-full bg-[#d2e4ff] text-[#001c37] text-xs font-bold self-start sm:self-auto">
@@ -516,7 +523,7 @@ export default function CrearEvento() {
 
               {gestiones.length === 0 && (
                 <div className="flex flex-col items-center text-center gap-2 py-4">
-                  <span className="material-symbols-outlined text-[26px] text-[#7a7580]" aria-hidden="true">playlist_add</span>
+                  <span className="material-symbols-outlined text-[26px] text-[#625d66]" aria-hidden="true">playlist_add</span>
                   <p className="text-[#49454f] italic">
                     Aún no tienes gestiones. Agrega la primera tarea logística (por ejemplo, reservar el salón o confirmar el catering).
                   </p>
@@ -526,10 +533,10 @@ export default function CrearEvento() {
               <div className="flex flex-col gap-3">
                 {gestiones.map((gestion, index) => (
                   <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3" key={gestion.id}>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
                       <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
                       Gestión {index + 1}
-                    </div>
+                    </h3>
 
                                         <div className="flex flex-col gap-1">
                       <label htmlFor={`gestion-titulo-${gestion.id}`} className={LABEL}>Título</label>
@@ -635,11 +642,11 @@ export default function CrearEvento() {
                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#f2f3ff] to-[#e4d9ff] flex items-center justify-center text-[#63518b]">
                   <span className="material-symbols-outlined text-[20px]" aria-hidden="true">analytics</span>
                 </div>
-                <h3 className={`${FONT_HEADLINE} text-base font-bold text-[#181b27]`}>Resumen del plan</h3>
+                <h2 className={`${FONT_HEADLINE} text-base font-bold text-[#181b27]`}>Resumen del plan</h2>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3.5 rounded-xl bg-[#f2f3ff] border border-[#ebedfe] flex flex-col">
-                  <span className="text-xs text-[#7a7580]">Gestiones</span>
+                  <span className="text-xs text-[#625d66]">Gestiones</span>
                   <span className={`${FONT_HEADLINE} text-2xl font-extrabold text-[#181b27] mt-1`}>{totalGestiones}</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-[#d2e4ff]/40 border border-[#d2e4ff] flex flex-col">
