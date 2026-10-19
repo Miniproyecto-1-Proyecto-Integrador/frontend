@@ -327,9 +327,6 @@ export default function CrearEvento() {
       <div className="relative mb-6">
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
           <div className="absolute -top-16 -right-10 w-64 h-64 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl" />
-          <span className="absolute -right-2 -top-4 material-symbols-outlined text-[120px] text-[#63518b]/[0.06] select-none">
-            celebration
-          </span>
         </div>
 
         {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}

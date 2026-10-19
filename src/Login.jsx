@@ -62,46 +62,6 @@ export default function Login() {
   return (
     // Un tercio para el panel morado y dos tercios para el formulario.
     <div className="min-h-screen bg-[#faf8ff] text-[#181b27] lg:grid lg:grid-cols-[1fr_2fr]">
-      {/* Panel morado: solo desktop y solo decorativo, por eso aria-hidden:
-          el lector de pantalla lo salta y va directo al formulario. */}
-      <aside
-        aria-hidden="true"
-        className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#3d3163] via-[#524177] to-[#63518b] p-10 text-white"
-      >
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-[#eaddff]/20 blur-3xl" />
-          <div className="absolute bottom-0 -left-16 h-72 w-72 rounded-full bg-[#d2e4ff]/15 blur-3xl" />
-          <span className="material-symbols-outlined absolute -bottom-6 -right-6 text-[200px] text-white/[0.06] select-none">
-            celebration
-          </span>
-        </div>
-
-        <div className="relative flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-            <span className="material-symbols-outlined text-[24px]">auto_schedule</span>
-          </div>
-          <span className={`${FONT_HEADLINE} text-xl font-bold tracking-tight`}>Planify</span>
-        </div>
-
-        <div className="relative flex flex-col gap-8">
-          <p className={`${FONT_HEADLINE} text-3xl font-extrabold leading-tight tracking-tight`}>
-            Tus eventos, <br /> bajo control.
-          </p>
-          <ul className="flex flex-col gap-4">
-            {BENEFICIOS.map((b) => (
-              <li key={b.icon} className="flex items-center gap-3 text-[15px] text-white/90">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/15">
-                  <span className="material-symbols-outlined text-[20px]">{b.icon}</span>
-                </span>
-                {b.texto}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <p className="relative text-xs text-white/90">Organizador de eventos</p>
-      </aside>
-
       {/* Columna del formulario, con manchas de color suaves detrás */}
       <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
@@ -217,6 +177,48 @@ export default function Login() {
           </form>
         </main>
       </div>
+
+      {/* Panel morado: solo desktop y decorativo, por eso aria-hidden. Va DESPUÉS del
+          formulario en el DOM (así el <h1> es el primer encabezado de la página) y
+          `lg:order-first` lo deja a la izquierda en pantalla. Su eslogan es un <h2>
+          real: como <p> grande y en negrita WAVE lo marcaba como "posible encabezado". */}
+      <aside
+        aria-hidden="true"
+        className="relative hidden lg:order-first lg:flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#3d3163] via-[#524177] to-[#63518b] p-10 text-white"
+      >
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-24 -right-24 h-80 w-80 rounded-full bg-[#eaddff]/20 blur-3xl" />
+          <div className="absolute bottom-0 -left-16 h-72 w-72 rounded-full bg-[#d2e4ff]/15 blur-3xl" />
+          <span className="material-symbols-outlined absolute -bottom-6 -right-6 text-[200px] text-white/[0.06] select-none">
+            celebration
+          </span>
+        </div>
+
+        <div className="relative flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+            <span className="material-symbols-outlined text-[24px]">auto_schedule</span>
+          </div>
+          <span className={`${FONT_HEADLINE} text-xl font-bold tracking-tight`}>Planify</span>
+        </div>
+
+        <div className="relative flex flex-col gap-8">
+          <h2 className={`${FONT_HEADLINE} text-3xl font-extrabold leading-tight tracking-tight`}>
+            Tus eventos, <br /> bajo control.
+          </h2>
+          <ul className="flex flex-col gap-4">
+            {BENEFICIOS.map((b) => (
+              <li key={b.icon} className="flex items-center gap-3 text-[15px] text-white/90">
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/15">
+                  <span className="material-symbols-outlined text-[20px]">{b.icon}</span>
+                </span>
+                {b.texto}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="relative text-xs text-white/90">Organizador de eventos</p>
+      </aside>
     </div>
   );
 }
