@@ -66,9 +66,6 @@ export default function MisEventos() {
       <div className="relative">
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
           <div className="absolute -top-16 -right-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-60 blur-2xl" />
-          <span className="absolute -right-2 -top-2 material-symbols-outlined text-[110px] text-[#63518b]/[0.06] select-none">
-            celebration
-          </span>
         </div>
 
         <div className="relative flex flex-col gap-1 py-1">
@@ -144,7 +141,7 @@ export default function MisEventos() {
                         </span>
                       </div>
                       <span
-                        className="material-symbols-outlined ml-auto text-[20px] text-[#625d66] opacity-0 -translate-x-1 transition-all group-hover:opacity-100 group-hover:translate-x-0"
+                        className="material-symbols-outlined ml-auto text-[20px] text-[#625d66] -translate-x-1 transition-transform group-hover:translate-x-0 group-focus-visible:translate-x-0"
                         aria-hidden="true"
                       >
                         arrow_forward
