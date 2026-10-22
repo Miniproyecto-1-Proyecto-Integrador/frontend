@@ -1,4 +1,4 @@
-F# Frontend – Organizador de Eventos Independientes
+# Frontend – Organizador de Eventos Independientes
 
 Aplicación web (SPA) para planificar, ejecutar y reprogramar el trabajo logístico de eventos. Proyecto Integrador I – Universidad del Valle.
 
