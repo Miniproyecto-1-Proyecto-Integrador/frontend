@@ -1,23 +1,39 @@
+# Frontend – Organizador de Eventos Independientes
 
-Base minima del frontend en React + Vite. Su unico objetivo en esta
-etapa es demostrar la conexion Frontend a Backend contra
-`GET /api/health/`, mostrando "conectado efectivo" cuando el backend
-responde correctamente.
+Aplicación web (SPA) para planificar, ejecutar y reprogramar el trabajo logístico de eventos. Proyecto Integrador I – Universidad del Valle.
 
-## Consulte guia de instalacion de juan pa poder iniciar todo.
-ahi dejo detallado que dependencias se necesitan para el correcto funcionamiento, tambien se da una guia
-para levantarlo.
+- **Frontend (producción):** https://frontend-equipo-fisica.vercel.app
+- **Backend (producción):** https://backend-wy15.onrender.com/api/
 
-## Estructura general de archivod
+## Stack
+
+React 18 · Vite 5 · React Router 7 · Tailwind CSS 4
+
+## Requisitos
+
+- Node.js 20 o superior (probado con Node 22) y npm
+- Backend Django/DRF en ejecución (local o el de producción en Render)
+
+## Configuración
+
+1. Clona el repositorio e instala las dependencias:
+
+```bash
+   git clone https://github.com/Miniproyecto-1-Proyecto-Integrador/frontend.git
+   cd frontend
+   npm install
 ```
-src/
-├── services/
-│   └── api.js      #unica puerta de salida hacia el backend     
-├── App.jsx         #pantalla de estado (loading / ok / error)
-├── main.jsx
-└── index.css
+
+2. Crea el archivo de variables de entorno a partir del ejemplo:
+
+```bash
+   cp .env.example .env
 ```
 
-Cuando existan endpoints reales de eventos, se agregarán nuevas
-funciones a `services/api.js` sin tocar el resto de la arquitectura!!!
+## Ejecución en local
 
+```bash
+npm run dev
+```
+
+Se abre en http://localhost:5173.

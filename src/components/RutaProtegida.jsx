@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import PantallaCarga from './PantallaCarga';
 import { BOTON_PRINCIPAL } from './ui';
 
 export default function RutaProtegida() {
@@ -7,11 +8,7 @@ export default function RutaProtegida() {
   const location = useLocation();
 
   if (status === 'checking') {
-    return (
-      <main className="status-screen">
-        <p role="status">Verificando sesión…</p>
-      </main>
-    );
+    return <PantallaCarga />;
   }
 
   if (status === 'error') {
