@@ -1,23 +1,35 @@
+Frontend – Organizador de Eventos Independientes
 
-Base minima del frontend en React + Vite. Su unico objetivo en esta
-etapa es demostrar la conexion Frontend a Backend contra
-`GET /api/health/`, mostrando "conectado efectivo" cuando el backend
-responde correctamente.
+Aplicación web (SPA) para planificar, ejecutar y reprogramar el trabajo logístico de eventos. Proyecto Integrador I – Universidad del Valle.
 
-## Consulte guia de instalacion de juan pa poder iniciar todo.
-ahi dejo detallado que dependencias se necesitan para el correcto funcionamiento, tambien se da una guia
-para levantarlo.
+Frontend (producción): https://frontend-equipo-fisica.vercel.app
+Backend (producción): https://backend-wy15.onrender.com/api/
+Stack
 
-## Estructura general de archivod
-```
-src/
-├── services/
-│   └── api.js      #unica puerta de salida hacia el backend     
-├── App.jsx         #pantalla de estado (loading / ok / error)
-├── main.jsx
-└── index.css
-```
+React 18 · Vite 5 · React Router 7 · Tailwind CSS 4
 
-Cuando existan endpoints reales de eventos, se agregarán nuevas
-funciones a `services/api.js` sin tocar el resto de la arquitectura!!!
+Requisitos
+Node.js 20 o superior (probado con Node 22) y npm
+Backend Django/DRF en ejecución (local o el de producción en Render)
+Configuración
+Clona el repositorio e instala las dependencias:
+bash
+   git clone https://github.com/Miniproyecto-1-Proyecto-Integrador/frontend.git
+   cd frontend
+   npm install
+Crea el archivo de variables de entorno a partir del ejemplo:
+bash
+   cp .env.example .env
+Ajusta VITE_API_URL en .env (sin / al final):
+Entorno	Valor de VITE_API_URL
+Backend local	http://127.0.0.1:8000/api
+Backend en producción	https://backend-wy15.onrender.com/api
+Si la variable no está definida, la app usa http://127.0.0.1:8000/api por defecto. La URL se lee solo en src/services/api.js; nunca se escribe directamente en los componentes.
 
+El archivo .env está en .gitignore. No lo subas al repositorio.
+
+Ejecución en local
+bash
+npm run dev
+
+Se abre en http://localhost:5173.
