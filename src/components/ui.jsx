@@ -64,3 +64,39 @@ export function InputIcono({ icon, className = '', ...props }) {
     </div>
   );
 }
+
+// ---------------------- Skeletons de carga ----------------------
+// Reemplazan los textos "Cargando…": imitan la forma de las tarjetas reales
+// para que la página no "salte" cuando llegan los datos. Respetan
+// prefers-reduced-motion y avisan "Cargando…" solo una vez a lectores de pantalla.
+
+export function SkeletonBloque({ className = '' }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse motion-reduce:animate-none rounded-lg bg-[#e5e7f8] ${className}`}
+    />
+  );
+}
+
+export function SkeletonLista({ filas = 3, etiqueta = 'Cargando…', conIcono = true }) {
+  return (
+    <div role="status" aria-busy="true">
+      <span className="sr-only">{etiqueta}</span>
+      <ul aria-hidden="true" className="flex flex-col gap-3">
+        {Array.from({ length: filas }).map((_, i) => (
+          <li key={i} className={`${CARD} !p-4 sm:!p-5 !gap-3`}>
+            <div className="flex items-center gap-3">
+              {conIcono && <SkeletonBloque className="h-10 w-10 flex-shrink-0 !rounded-xl" />}
+              <div className="flex flex-1 flex-col gap-2">
+                <SkeletonBloque className="h-4 w-2/3" />
+                <SkeletonBloque className="h-3 w-1/2" />
+              </div>
+            </div>
+            <SkeletonBloque className="h-2.5 w-full !rounded-full" />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

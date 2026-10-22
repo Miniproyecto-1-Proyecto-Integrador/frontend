@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EstadoProgreso } from './components/ProgresoBarra';
-import ProgresoGeneral from './components/ProgresoGeneral';
-import { BOTON_PRINCIPAL, CARD, FONT_HEADLINE } from './components/ui';
+import ProgresoGeneral, { ProgresoGeneralSkeleton } from './components/ProgresoGeneral';
+import { BOTON_PRINCIPAL, CARD, FONT_HEADLINE, SkeletonLista } from './components/ui';
 import { MC } from './helpers/microcopy';
 import { useTituloPagina } from './helpers/useTituloPagina';
 import { getProgresoEvento, listEvents } from './services/events';
@@ -82,7 +82,10 @@ export default function Progreso() {
       </div>
 
       {status === 'loading' && (
-        <p className="px-1 py-3 text-[#49454f]" role="status">{MC.paginaProgreso.cargando}</p>
+        <>
+          <ProgresoGeneralSkeleton etiqueta={MC.paginaProgreso.cargando} />
+          <SkeletonLista filas={2} etiqueta="" conIcono={false} />
+        </>
       )}
 
       {status === 'error' && (

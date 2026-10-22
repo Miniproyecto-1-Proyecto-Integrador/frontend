@@ -5,12 +5,13 @@ import {
     CARD,
     FONT_HEADLINE,
     LABEL,
+    SkeletonLista,
 } from './components/ui';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 import { GestionEstado } from './components/EstadoGestion';
 import { MC } from './helpers/microcopy';
 import { useTituloPagina } from './helpers/useTituloPagina';
-import { getHoy, listEvents, listSubtasks } from './services/events';
+import { getHoy, listEvents, listSubtasks, updateSubtask } from './services/events';
 
 // El orden de los grupos en pantalla es fijo. El orden DENTRO de cada grupo
 // lo decide el backend: aquí no se reordena nada.
@@ -31,6 +32,11 @@ const SELECT =
   'w-full rounded-xl border border-[#e5e7f8] bg-white px-3 py-2.5 text-sm text-[#181b27] ' +
   'focus:border-[#63518b] focus:ring-2 focus:ring-[#63518b]/20 outline-none ' +
   'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2';
+
+// Tras marcar una gestión, la tarjeta se queda visible (tachada, con su nuevo estado) este
+// tiempo antes de que /hoy se recargue y la re-agrupe; y este es el tiempo para "Deshacer".
+const RETARDO_RECARGA_MS = 1200;
+const VENTANA_DESHACER_MS = 6000;
 
 // "2026-09-20" -> "20/09/2026" sin pasar por Date (evita el corrimiento de zona horaria).
 function formatFecha(iso) {
@@ -97,11 +103,16 @@ export default function Hoy() {
   const [reglaAbierta, setReglaAbierta] = useState(false);
   const [aviso, setAviso] = useState(null); // { texto, id }
   const [errorAccion, setErrorAccion] = useState('');
+  const [deshaciendo, setDeshaciendo] = useState(false);
 
   const headingRef = useRef(null);
   const avisoRef = useRef(null);
   const reqId = useRef(0);
   const yaEnfocado = useRef(false);
+  const deshacerBtnRef = useRef(null);
+  const timerRecarga = useRef(null);
+  const timerDeshacer = useRef(null);
+  const cargarRef = useRef(null);
 
   const cargar = useCallback(
     async ({ silencioso = false } = {}) => {
@@ -126,7 +137,19 @@ export default function Hoy() {
     [estadoParam, eventoParam]
   );
 
-  useEffect(() => { cargar(); }, [cargar]);
+  cargarRef.current = cargar;
+
+  // Si cambian los filtros, se cancela cualquier recarga pendiente (usaría los filtros viejos).
+  useEffect(() => {
+    clearTimeout(timerRecarga.current);
+    cargar();
+  }, [cargar]);
+
+  // Al salir de la pantalla no debe quedar ningún temporizador vivo.
+  useEffect(() => () => {
+    clearTimeout(timerRecarga.current);
+    clearTimeout(timerDeshacer.current);
+  }, []);
 
   // Lista de eventos solo para poblar el filtro. Si falla, el filtro queda en "Todos".
   useEffect(() => {
@@ -147,7 +170,8 @@ export default function Hoy() {
   // llevamos el foco al aviso para no dejar al usuario de teclado en el vacío.
   useEffect(() => {
     if (aviso) avisoRef.current?.focus();
-  }, [aviso]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aviso?.id]);
 
   function cambiarFiltro(clave, valor, valorPorDefecto = '') {
     setParams((prev) => {
@@ -166,13 +190,78 @@ export default function Hoy() {
     setErrorAccion('');
   }
 
-  // C3: al marcar hecha / pospuesta el backend ya guardó el cambio; recargamos
-  // /hoy en silencio para que re-agrupe, re-ordene y baje la carga de horas.
-  // No reordenamos nada aquí: eso lo decide el backend.
-  function alActualizar(_actualizada, mensaje) {
+  // Aplica el cambio en la lista que ya está en pantalla (tachado + chip + horas) sin esperar
+  // a la recarga. El orden y el agrupamiento siguen siendo decisión del backend: se resuelven
+  // en la recarga que viene justo después.
+  function aplicarLocal(actualizada, previa) {
+    setData((prev) => {
+      if (!prev?.grupos) return prev;
+      const grupos = Object.fromEntries(
+        Object.entries(prev.grupos).map(([clave, items]) => [
+          clave,
+          items.map((it) =>
+            it.id === previa.id
+              ? {
+                  ...it,
+                  estado: actualizada?.estado ?? it.estado,
+                  nota: actualizada && 'nota' in actualizada ? actualizada.nota : it.nota,
+                }
+              : it
+          ),
+        ])
+      );
+      return { ...prev, grupos };
+    });
+  }
+
+  function programarRecarga(ms) {
+    clearTimeout(timerRecarga.current);
+    timerRecarga.current = setTimeout(() => cargarRef.current?.({ silencioso: true }), ms);
+  }
+
+  // C3: al marcar hecha / pospuesta el backend ya guardó el cambio. Se refleja al instante en la
+  // tarjeta, se ofrece "Deshacer" unos segundos y, pasado un momento, se recarga /hoy en silencio
+  // para que re-agrupe, re-ordene y baje la carga de horas. `previa` es la gestión ANTES del cambio.
+  function alActualizar(previa, actualizada, mensaje) {
     setErrorAccion('');
-    setAviso({ texto: mensaje, id: Date.now() });
-    cargar({ silencioso: true });
+    clearTimeout(timerDeshacer.current);
+    const id = Date.now();
+    setAviso({ texto: mensaje, id, previa });
+    aplicarLocal(actualizada, previa);
+    programarRecarga(RETARDO_RECARGA_MS);
+    timerDeshacer.current = setTimeout(() => {
+      // Si el foco estaba en "Deshacer", lo pasamos al aviso para no dejarlo en el vacío.
+      if (deshacerBtnRef.current && document.activeElement === deshacerBtnRef.current) {
+        avisoRef.current?.focus();
+      }
+      setAviso((a) => (a && a.id === id ? { ...a, previa: null } : a));
+    }, VENTANA_DESHACER_MS);
+  }
+
+  // Revierte el último cambio con el mismo PATCH que usa el resto de la app.
+  async function deshacer() {
+    const previa = aviso?.previa;
+    if (!previa || deshaciendo) return;
+    clearTimeout(timerDeshacer.current);
+    clearTimeout(timerRecarga.current);
+    setDeshaciendo(true);
+    setErrorAccion('');
+
+    const estado = previa.estado || 'pendiente';
+    const payload = { estado };
+    if (estado === 'pospuesta') payload.nota = previa.nota ?? '';
+    else if (estado === 'pendiente') payload.nota = '';
+
+    try {
+      const actualizada = await updateSubtask(previa.evento_id, previa.id, payload);
+      aplicarLocal(actualizada, previa);
+      setAviso({ texto: `Se deshizo el cambio en «${previa.titulo}».`, id: Date.now(), previa: null });
+    } catch (err) {
+      setErrorAccion(esFalloDeRed(err) ? MENSAJE_ERROR_RED : MC.error.guardar);
+    } finally {
+      setDeshaciendo(false);
+      cargarRef.current?.({ silencioso: true });
+    }
   }
 
   return (
@@ -262,17 +351,38 @@ export default function Hoy() {
         </button>
       </form>
 
-      {/* Aviso tras cambiar el estado de una gestión (también lo anuncia el lector de pantalla) */}
+      {/* Aviso flotante tras cambiar el estado de una gestión: también lo anuncia el lector de
+          pantalla, trae "Deshacer" unos segundos y se puede cerrar. */}
       {aviso && (
-        <p
+        <div
           key={aviso.id}
           ref={avisoRef}
           tabIndex={-1}
           role="status"
-          className="rounded-xl border border-[#e5e7f8] bg-white px-4 py-3 text-sm text-[#181b27] focus:outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b]"
+          className="fixed inset-x-4 bottom-4 z-40 flex items-center gap-3 rounded-xl border border-[#1e5a34]/25 bg-[#eaf7ee] px-4 py-3 text-sm text-[#1e5a34] shadow-lg focus:outline-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] sm:left-auto sm:right-6 sm:w-96"
         >
-          {aviso.texto}
-        </p>
+          <span className="material-symbols-outlined text-[20px]" aria-hidden="true">check_circle</span>
+          <span className="min-w-0 flex-1">{aviso.texto}</span>
+          {aviso.previa && (
+            <button
+              ref={deshacerBtnRef}
+              type="button"
+              onClick={deshacer}
+              disabled={deshaciendo}
+              className="rounded-lg px-2 py-1 text-sm font-bold underline underline-offset-2 hover:bg-[#1e5a34]/10 disabled:opacity-60 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b]"
+            >
+              {deshaciendo ? 'Deshaciendo…' : 'Deshacer'}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setAviso(null)}
+            aria-label="Cerrar aviso"
+            className="rounded-lg p-1 hover:bg-[#1e5a34]/10 focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b]"
+          >
+            <span className="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
+          </button>
+        </div>
       )}
       {errorAccion && (
         <p role="alert" className="rounded-xl border border-[#ba1a1a]/40 bg-[#ffdad6]/40 px-4 py-3 text-sm text-[#93000a]">
@@ -281,9 +391,7 @@ export default function Hoy() {
       )}
 
       {/* ---------- C4: cargando / error / vacío / lista ---------- */}
-      {status === 'loading' && (
-        <p className="px-1 py-3 text-[#49454f]" role="status">Cargando gestiones…</p>
-      )}
+      {status === 'loading' && <SkeletonLista filas={3} etiqueta="Cargando gestiones…" conIcono={false} />}
 
       {status === 'error' && (
         <div role="alert" className={`${CARD} items-start`}>
@@ -369,7 +477,7 @@ export default function Hoy() {
                         <GestionEstado
                           eventoId={g.evento_id}
                           gestion={g}
-                          onActualizada={alActualizar}
+                          onActualizada={(actualizada, mensaje) => alActualizar(g, actualizada, mensaje)}
                           confirmacionInline={false}
                         />
                       </li>

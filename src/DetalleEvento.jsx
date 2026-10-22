@@ -14,7 +14,9 @@ import {
   LABEL,
   PILL_ACTIVE,
   PILL_BASE,
-  PILL_INACTIVE
+  PILL_INACTIVE,
+  SkeletonBloque,
+  SkeletonLista,
 } from './components/ui';
 import { useFocusTrap } from './helpers/UseFocusTrap';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
@@ -70,6 +72,54 @@ function useEscapeToClose(activo, onCerrar) {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [activo, onCerrar]);
+}
+
+// Esqueleto de la vista mientras carga el evento: migas, título, tarjeta del evento,
+// progreso y plan logístico, con la misma forma que la pantalla final.
+function DetalleEventoSkeleton() {
+  return (
+    <div role="status" aria-busy="true">
+      <span className="sr-only">Cargando evento…</span>
+      <div aria-hidden="true" className="flex flex-col gap-2 pb-16">
+        <SkeletonBloque className="mb-2 h-3 w-48" />
+        <SkeletonBloque className="mb-4 h-8 w-2/3 max-w-md" />
+
+        <div className="flex flex-col gap-8">
+          <div className={CARD}>
+            <div className="flex items-center gap-3">
+              <SkeletonBloque className="h-10 w-10 flex-shrink-0 !rounded-xl" />
+              <SkeletonBloque className="h-5 w-40" />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="flex flex-col gap-2">
+                  <SkeletonBloque className="h-3 w-24" />
+                  <SkeletonBloque className="h-5 w-3/4" />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <SkeletonBloque className="h-9 w-24 !rounded-xl" />
+              <SkeletonBloque className="h-9 w-24 !rounded-xl" />
+            </div>
+          </div>
+
+          <div className={`${CARD} !gap-3`}>
+            <SkeletonBloque className="h-5 w-48" />
+            <SkeletonBloque className="h-3 w-full !rounded-full" />
+          </div>
+
+          <div className={CARD}>
+            <div className="flex items-center gap-3 border-b border-[#ebedfe] pb-4">
+              <SkeletonBloque className="h-10 w-10 flex-shrink-0 !rounded-xl" />
+              <SkeletonBloque className="h-5 w-36" />
+            </div>
+            <SkeletonLista filas={2} etiqueta="" conIcono={false} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function DetalleEvento() {
@@ -129,7 +179,7 @@ export default function DetalleEvento() {
   }, [pageStatus]);
 
   if (pageStatus === 'loading') {
-    return <p className="px-4 py-3" role="status">Cargando evento…</p>;
+    return <DetalleEventoSkeleton />;
   }
 
   if (pageStatus === 'notfound') {
@@ -646,6 +696,9 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   const [errorField, setErrorField] = useState(null);
   const [errorMensaje, setErrorMensaje] = useState('');
   const [conflicto, setConflicto] = useState(null);
+  // De dónde vino el conflicto: del formulario de edición o del de reprogramación.
+  // El menú de alternativas es el mismo; solo cambian los datos que se guardan.
+  const [origenConflicto, setOrigenConflicto] = useState('editar'); // 'editar' | 'reprogramar'
 
   const [buscandoFecha, setBuscandoFecha] = useState(false);
   const [fechaPropuesta, setFechaPropuesta] = useState(null);
@@ -674,6 +727,15 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     if (modo === 'editar') focusField(`sub-titulo-${subtarea.id}`);
   }, [modo, subtarea.id]);
 
+  // Si la gestión cambia desde fuera del formulario de edición (por ejemplo, al reprogramarla),
+  // los campos de edición se actualizan para que "Editar" no vuelva a guardar la fecha vieja.
+  useEffect(() => {
+    if (modo !== 'ver') return;
+    setTitulo(subtarea.titulo);
+    setFechaObjetivo(subtarea.fecha_objetivo);
+    setHorasEstimadas(subtarea.horas_estimadas);
+  }, [modo, subtarea.titulo, subtarea.fecha_objetivo, subtarea.horas_estimadas]);
+
   useEffect(() => {
     if (confirmando) confirmarHeadingRef.current?.focus();
   }, [confirmando]);
@@ -699,7 +761,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
   useEscapeToClose(conflicto, () => {
   setConflicto(null);
-  editarBtnRef.current?.focus();
+  if (origenConflicto === 'reprogramar') reprogramarBtnRef.current?.focus();
+  else editarBtnRef.current?.focus();
   });
 
   useFocusTrap(confirmando, confirmarDialogRef);
@@ -754,6 +817,17 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     } catch (err) {
       setEstado('idle');
 
+      // Sobrecarga diaria: se muestra el mismo menú de alternativas que al editar.
+      if (err.status === 409 && err.conflicto) {
+        setOrigenConflicto('reprogramar');
+        setConflicto(err.conflicto);
+        setFechaPropuesta(null);
+        setErrorFechaPropuesta(null);
+        setErrorReprogramacion(null);
+        setReprogramando(false);
+        return;
+      }
+
       const fe = err.fieldErrors || {};
 
       if (fe.fecha_objetivo?.[0]) {
@@ -770,7 +844,11 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
 
 
   async function buscarProximaFecha() {
-    if (!conflicto || !fechaObjetivo || !horasEstimadas) {
+    const reprogramar = origenConflicto === 'reprogramar';
+    const fechaBase = reprogramar ? fechaReprogramada : fechaObjetivo;
+    const horasBase = reprogramar ? subtarea.horas_estimadas : horasEstimadas;
+
+    if (!conflicto || !fechaBase || !horasBase) {
       return;
     }
 
@@ -781,8 +859,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     try {
       const resultado = await getProximaFechaDisponible(
         eventoId,
-        fechaObjetivo,
-        horasEstimadas,
+        fechaBase,
+        horasBase,
         subtarea.id
       );
 
@@ -803,8 +881,64 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     }
   }
 
+  // Reprogramación: guarda solo la nueva fecha (la propuesta, o la elegida con las horas reducidas).
+  async function guardarReprogramacionResuelta(cambios, mensaje) {
+    setEstado('guardando');
+    try {
+      const actualizada = await updateSubtask(eventoId, subtarea.id, cambios);
+      onGuardada(actualizada);
+      setEstado('idle');
+      setConflicto(null);
+      setFechaPropuesta(null);
+      setErrorFechaPropuesta(null);
+      onFeedback({
+        titulo: 'Gestión reprogramada',
+        mensaje,
+        focoRef: reprogramarBtnRef,
+      });
+    } catch (err) {
+      setEstado('idle');
+
+      if (err.status === 409 && err.conflicto) {
+        setConflicto(err.conflicto);
+        setFechaPropuesta(null);
+        setErrorFechaPropuesta(null);
+        return;
+      }
+
+      setConflicto(null);
+      onFeedback({
+        variant: 'error',
+        titulo: 'No pudimos reprogramar la gestión',
+        mensaje: mensajeError(err, 'Inténtalo de nuevo.'),
+        focoRef: reprogramarBtnRef,
+      });
+    }
+  }
+
+  // "Volver a editar" (o "Elegir otra fecha" si venimos de reprogramar): cierra el conflicto
+  // y devuelve a la persona al formulario donde estaba.
+  function volverDesdeConflicto() {
+    setConflicto(null);
+    setFechaPropuesta(null);
+    setErrorFechaPropuesta(null);
+    if (origenConflicto === 'reprogramar') {
+      setReprogramando(true);
+    } else {
+      document.getElementById(`sub-fecha-${subtarea.id}`)?.focus();
+    }
+  }
+
   async function guardarConFechaPropuesta() {
     if (!fechaPropuesta) return;
+
+    if (origenConflicto === 'reprogramar') {
+      await guardarReprogramacionResuelta(
+        { fecha_objetivo: fechaPropuesta },
+        'La nueva fecha se guardó correctamente.'
+      );
+      return;
+    }
 
     setFechaObjetivo(fechaPropuesta);
     setEstado('guardando');
@@ -834,6 +968,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       setEstado('idle');
 
       if (err.status === 409 && err.conflicto) {
+        setOrigenConflicto('editar');
         setConflicto(err.conflicto);
         setFechaPropuesta(null);
         setErrorFechaPropuesta(null);
@@ -877,6 +1012,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         setEstado('idle');
         setErrorField(null);
         setErrorMensaje('');
+        setOrigenConflicto('editar');
         setConflicto(err.conflicto);
         return;
       }
@@ -931,6 +1067,14 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       return;
     }
 
+    if (origenConflicto === 'reprogramar') {
+      await guardarReprogramacionResuelta(
+        { fecha_objetivo: fechaReprogramada, horas_estimadas: horasDisponibles },
+        `La gestión se reprogramó y sus horas se redujeron a ${horasDisponibles} h.`
+      );
+      return;
+    }
+
     setHorasEstimadas(horasDisponibles.toString());
     setConflicto(null);
 
@@ -958,6 +1102,130 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
       });
     }
   }
+
+  // Menú de alternativas ante un conflicto de sobrecarga: el mismo al editar y al reprogramar.
+  const panelConflicto = conflicto ? (
+        <div
+          ref={conflictoDialogRef}
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby={`conflicto-heading-${subtarea.id}`}
+          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
+        >
+          <h3
+            id={`conflicto-heading-${subtarea.id}`}
+            ref={conflictoHeadingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
+          >
+            Hay un conflicto de planificación
+          </h3>
+
+          <p className="text-sm text-[#181b27] mb-3">
+            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#625d66]">Fecha</span>
+              <strong>{conflicto.fecha}</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#625d66]">Horas ya planificadas</span>
+              <strong>{conflicto.horas_ya_planificadas} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#625d66]">Horas de esta gestión</span>
+              <strong>{conflicto.horas_gestion} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#625d66]">Total planificado</span>
+              <strong>{conflicto.horas_total} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
+              <span className="block text-xs text-[#625d66]">Límite diario</span>
+              <strong>{conflicto.limite_diario} h</strong>
+            </div>
+
+            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
+              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
+              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs text-[#625d66] mb-3">
+              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
+            </p>
+
+            <div className="flex gap-3 flex-wrap">
+              {Number(conflicto.horas_disponibles) > 0 ? (
+                <button
+                  type="button"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  onClick={resolverReduciendoHoras}
+                  disabled={estado === 'guardando'}
+                >
+                  Reducir a {conflicto.horas_disponibles} h y guardar
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
+                  onClick={buscarProximaFecha}
+                  disabled={estado === 'guardando' || buscandoFecha}
+                >
+                  {buscandoFecha
+                    ? 'Buscando fecha…'
+                    : 'Mover a la próxima fecha disponible'}
+                </button>
+              )}
+
+              <button
+                type="button"
+                className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
+                onClick={volverDesdeConflicto}
+                disabled={estado === 'guardando'}
+              >
+                {origenConflicto === 'reprogramar' ? 'Elegir otra fecha' : 'Volver a editar'}
+              </button>
+            </div>
+
+            {fechaPropuesta && (
+              <div className="mt-3 rounded-lg border border-[#e5e7f8] bg-white p-3">
+                <p className="text-sm text-[#181b27]">
+                  Próxima fecha disponible:
+                  <strong className="ml-1">{fechaPropuesta}</strong>
+                </p>
+                <p className="mt-1 text-xs text-[#625d66]">
+                  Revisa la fecha antes de confirmar el cambio.
+                </p>
+              </div>
+            )}
+
+            {fechaPropuesta && (
+              <button
+                type="button"
+                className={`${BOTON_PRINCIPAL} mt-3 py-2 px-4 text-xs`}
+                disabled={estado === 'guardando'}
+                onClick={() => guardarConFechaPropuesta()}
+              >
+                Confirmar fecha y guardar
+              </button>
+            )}
+
+            {errorFechaPropuesta && (
+              <p className="mt-3 text-sm text-[#ba1a1a]" role="alert">
+                {errorFechaPropuesta}
+              </p>
+            )}
+          </div>
+        </div>
+  ) : null;
 
   if (modo === 'ver') {
     return (
@@ -1130,6 +1398,8 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
             </form>
           </div>
         )}
+
+        {panelConflicto}
       </div>
     );
   }
@@ -1192,135 +1462,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           Cancelar
         </button>
       </div>
-      {conflicto && (
-        <div
-          ref={conflictoDialogRef}
-          role="alertdialog"
-          aria-modal="true"
-          aria-labelledby={`conflicto-heading-${subtarea.id}`}
-          className="p-4 rounded-xl border border-[#ba1a1a]/30 bg-[#fff8f7] shadow-sm"
-        >
-          <h3
-            id={`conflicto-heading-${subtarea.id}`}
-            ref={conflictoHeadingRef}
-            tabIndex={-1}
-            className={`${FONT_HEADLINE} mb-3 text-sm font-bold text-[#181b27] focus:outline-none`}
-          >
-            Hay un conflicto de planificación
-          </h3>
-
-          <p className="text-sm text-[#181b27] mb-3">
-            Esta gestión haría que el tiempo planificado para el día supere tu límite diario.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#625d66]">Fecha</span>
-              <strong>{conflicto.fecha}</strong>
-            </div>
-
-            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#625d66]">Horas ya planificadas</span>
-              <strong>{conflicto.horas_ya_planificadas} h</strong>
-            </div>
-
-            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#625d66]">Horas de esta gestión</span>
-              <strong>{conflicto.horas_gestion} h</strong>
-            </div>
-
-            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#625d66]">Total planificado</span>
-              <strong>{conflicto.horas_total} h</strong>
-            </div>
-
-            <div className="p-3 rounded-lg bg-white border border-[#e5e7f8]">
-              <span className="block text-xs text-[#625d66]">Límite diario</span>
-              <strong>{conflicto.limite_diario} h</strong>
-            </div>
-
-            <div className="p-3 rounded-lg bg-[#ffdad6]/30 border border-[#ba1a1a]/20">
-              <span className="block text-xs text-[#ba1a1a]">Exceso</span>
-              <strong className="text-[#ba1a1a]">{conflicto.exceso} h</strong>
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <p className="text-xs text-[#625d66] mb-3">
-              Tienes {conflicto.horas_disponibles} h disponibles dentro de tu límite diario.
-            </p>
-
-            <div className="flex gap-3 flex-wrap">
-              {Number(conflicto.horas_disponibles) > 0 ? (
-                <button
-                  type="button"
-                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
-                  onClick={resolverReduciendoHoras}
-                  disabled={estado === 'guardando'}
-                >
-                  Reducir a {conflicto.horas_disponibles} h y guardar
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className={`${BOTON_PRINCIPAL} py-2 px-4 text-xs`}
-                  onClick={buscarProximaFecha}
-                  disabled={estado === 'guardando' || buscandoFecha}
-                >
-                  {buscandoFecha
-                    ? 'Buscando fecha…'
-                    : 'Mover a la próxima fecha disponible'}
-                </button>
-              )}
-
-              <button
-                type="button"
-                className={`${BOTON_SECUNDARIO} py-2 px-4 text-xs`}
-                onClick={() => {
-                  setConflicto(null);
-                  setFechaPropuesta(null);
-                  setErrorFechaPropuesta(null);
-                  document
-                    .getElementById(`sub-fecha-${subtarea.id}`)
-                    ?.focus();
-                }}
-                disabled={estado === 'guardando'}
-              >
-                Volver a editar
-              </button>
-            </div>
-
-            {fechaPropuesta && (
-              <div className="mt-3 rounded-lg border border-[#e5e7f8] bg-white p-3">
-                <p className="text-sm text-[#181b27]">
-                  Próxima fecha disponible:
-                  <strong className="ml-1">{fechaPropuesta}</strong>
-                </p>
-                <p className="mt-1 text-xs text-[#625d66]">
-                  Revisa la fecha antes de confirmar el cambio.
-                </p>
-              </div>
-            )}
-
-            {fechaPropuesta && (
-              <button
-                type="button"
-                className={`${BOTON_PRINCIPAL} mt-3 py-2 px-4 text-xs`}
-                disabled={estado === 'guardando'}
-                onClick={() => guardarConFechaPropuesta()}
-              >
-                Confirmar fecha y guardar
-              </button>
-            )}
-
-            {errorFechaPropuesta && (
-              <p className="mt-3 text-sm text-[#ba1a1a]" role="alert">
-                {errorFechaPropuesta}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+      {panelConflicto}
     </form>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { MC } from '../helpers/microcopy';
-import { BOTON_SECUNDARIO, CARD, FONT_HEADLINE } from './ui';
+import { BOTON_SECUNDARIO, CARD, FONT_HEADLINE, SkeletonBloque } from './ui';
 
 const RADIO = 52;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
@@ -81,6 +81,37 @@ function TarjetaSimple({ children }) {
   );
 }
 
+// Esqueleto con la misma forma que el resumen (anillo + barra + 3 indicadores) para que la
+// pantalla no salte cuando llegan los datos.
+export function ProgresoGeneralSkeleton({ etiqueta = MC.progresoGeneral.cargando }) {
+  return (
+    <div role="status" aria-busy="true">
+      <span className="sr-only">{etiqueta}</span>
+      <section
+        aria-hidden="true"
+        className={`${CARD} !p-5 sm:!p-6 !gap-5 !flex-col items-center sm:!flex-row sm:items-stretch !bg-gradient-to-b !from-[#f2f3ff] !to-white`}
+      >
+        <SkeletonBloque className="h-40 w-40 shrink-0 !rounded-full sm:h-48 sm:w-48" />
+        <div className="flex w-full min-w-0 flex-1 flex-col justify-between gap-4">
+          <div className="flex flex-col gap-3">
+            <SkeletonBloque className="h-4 w-40" />
+            <SkeletonBloque className="h-3 w-full !rounded-full" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <SkeletonBloque className="h-4 w-2/3" />
+            <SkeletonBloque className="h-3 w-1/2" />
+          </div>
+          <div className="flex gap-2">
+            <SkeletonBloque className="h-14 flex-1 !rounded-xl" />
+            <SkeletonBloque className="h-14 flex-1 !rounded-xl" />
+            <SkeletonBloque className="h-14 flex-1 !rounded-xl" />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function AvisoParcial({ cargados, eventos, onReintentar }) {
   return (
     <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -104,13 +135,7 @@ function AvisoParcial({ cargados, eventos, onReintentar }) {
 export default function ProgresoGeneral({ resumen, onReintentar }) {
   const { cargando, fallidos, cargados, eventos, hechas, total, porcentaje } = resumen;
 
-  if (cargando) {
-    return (
-      <TarjetaSimple>
-        <p role="status" className="py-8 text-sm text-[#49454f]">{MC.progresoGeneral.cargando}</p>
-      </TarjetaSimple>
-    );
-  }
+  if (cargando) return <ProgresoGeneralSkeleton />;
 
   if (cargados === 0) {
     return (
