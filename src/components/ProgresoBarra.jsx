@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MC } from '../helpers/microcopy';
 import { getProgresoEvento } from '../services/events';
-import { BOTON_SECUNDARIO } from './ui';
+import { BOTON_SECUNDARIO, SkeletonBloque } from './ui';
 
 /**
  * Vista (sin peticiones) del progreso de UN evento: cargando, error con "Reintentar",
@@ -14,9 +14,16 @@ import { BOTON_SECUNDARIO } from './ui';
 export function EstadoProgreso({ status, datos, onReintentar }) {
   if (status === 'loading') {
     return (
-      <p role="status" className="text-sm text-[#49454f]">
-        {MC.progreso.cargando}
-      </p>
+      <div role="status" aria-busy="true">
+        <span className="sr-only">{MC.progreso.cargando}</span>
+        <div aria-hidden="true" className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-3">
+            <SkeletonBloque className="h-4 w-32" />
+            <SkeletonBloque className="h-4 w-10" />
+          </div>
+          <SkeletonBloque className="h-3 w-full !rounded-full" />
+        </div>
+      </div>
     );
   }
 
