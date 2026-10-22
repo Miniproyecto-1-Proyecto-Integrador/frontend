@@ -6,6 +6,7 @@ import {
   PILL_BASE, PILL_ACTIVE, PILL_INACTIVE,
   SkeletonBloque, SkeletonLista,
 } from './components/ui';
+import { DoodleCalendario } from './components/Doodles';
 import SuccessModal from './components/SuccessCard';
 import { useTituloPagina } from './helpers/useTituloPagina';
 
@@ -258,9 +259,7 @@ export default function MisEventos() {
 
       {status === 'empty' && (
         <div className={`${CARD} items-center text-center py-10`}>
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#f2f3ff] to-[#d2e4ff] flex items-center justify-center text-[#63518b]">
-            <span className="material-symbols-outlined text-[28px]" aria-hidden="true">event_available</span>
-          </div>
+          <DoodleCalendario className="h-24 w-32" />
           <p className="text-[#49454f] italic">Aún no tienes eventos creados.</p>
           <Link to="/crear" className={`${BOTON_PRINCIPAL} self-center`}>Crear evento</Link>
         </div>

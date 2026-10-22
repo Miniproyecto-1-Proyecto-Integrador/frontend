@@ -41,7 +41,14 @@ export function EstadoChip({ estado }) {
  * El chip cambia al instante (optimista). Si el guardado falla, se revierte,
  * se muestra un error amigable y la nota escrita NO se borra.
  */
-export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionInline = true }) {
+export function GestionEstado({
+  eventoId,
+  gestion,
+  onActualizada,
+  confirmacionInline = true,
+  variant = 'bloque',
+  extraAcciones = null,
+}) {
   const titulo = gestion.titulo;
   const notaGuardada = gestion.nota ?? '';
 
@@ -136,19 +143,14 @@ export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionIn
 
   const compacto = 'py-1.5 px-4 text-xs';
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <EstadoChip estado={estado} />
-      </div>
+  const notaEl = nota ? (
+    <p className="whitespace-pre-wrap break-words text-xs text-[#49454f]">
+      <span className="font-semibold text-[#181b27]">{MC.nota.prefijo}:</span> {nota}
+    </p>
+  ) : null;
 
-      {nota && (
-        <p className="whitespace-pre-wrap break-words text-xs text-[#49454f]">
-          <span className="font-semibold text-[#181b27]">{MC.nota.prefijo}:</span> {nota}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2">
+  const botonesEl = (
+    <>
         {estado !== 'hecha' && (
           <button
             type="button"
@@ -187,7 +189,31 @@ export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionIn
             {MC.acciones.volverPendiente}
           </button>
         )}
-      </div>
+    </>
+  );
+
+  // variant 'fila': estado + acciones (y las extra de quien llama) en UNA sola fila
+  // que salta de línea si no cabe. Ocupa mucho menos alto cuando hay muchas gestiones.
+  // variant 'bloque' (por defecto, usado en /hoy): el estado arriba y las acciones debajo.
+  return (
+    <div className="flex flex-col gap-3">
+      {variant === 'fila' ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <EstadoChip estado={estado} />
+          {botonesEl}
+          {extraAcciones}
+        </div>
+      ) : (
+        <>
+          <div>
+            <EstadoChip estado={estado} />
+          </div>
+          {notaEl}
+          <div className="flex flex-wrap gap-2">{botonesEl}</div>
+        </>
+      )}
+
+      {variant === 'fila' && notaEl}
 
       {formAbierto && (
         <form

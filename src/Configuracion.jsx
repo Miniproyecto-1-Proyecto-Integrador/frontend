@@ -8,6 +8,7 @@ import {
   INPUT,
   LABEL,
 } from './components/ui';
+import { DoodleConfeti } from './components/Doodles';
 import { MC } from './helpers/microcopy';
 import { useTituloPagina } from './helpers/useTituloPagina';
 import {
@@ -22,7 +23,7 @@ import { getHoy, getLimiteDiario, updateLimiteDiario } from './services/events';
 const MAX_DIAS_VISIBLES = 5;
 
 export default function Configuracion() {
-  useTituloPagina('Configuración');
+  useTituloPagina(MC.limite.titulo);
   const [limiteDiario, setLimiteDiario] = useState('6');
   const [limiteGuardado, setLimiteGuardado] = useState(null);
   const [hoyData, setHoyData] = useState(null); // gestiones pendientes, para avisar de sobrecarga
@@ -68,6 +69,8 @@ export default function Configuracion() {
   const valor = Number(limiteDiario);
   const valorValido =
     limiteDiario.trim() !== '' && Number.isFinite(valor) && valor >= 1 && valor <= 16;
+  // Solo pasos de media hora (3, 3,5, 4…): antes se aceptaban decimales como 3,67.
+  const pasoValido = Number.isInteger(Math.round(valor * 1e6) / 1e6 * 2);
 
   // Se recalcula mientras la persona escribe; no hace peticiones nuevas.
   const carga = useMemo(() => cargaPorDia(gestionesVigentes(hoyData)), [hoyData]);
@@ -96,6 +99,11 @@ export default function Configuracion() {
 
     if (valor < 1 || valor > 16) {
       setError('El límite diario debe estar entre 1 y 16 horas.');
+      return;
+    }
+
+    if (!pasoValido) {
+      setError(MC.limite.paso);
       return;
     }
 
@@ -149,26 +157,42 @@ export default function Configuracion() {
     }
   }
 
+  // Botones − / +: avanzan de media en media hora y redondean cualquier valor raro.
+  function ajustar(delta) {
+    const base = Number.isFinite(valor) && limiteDiario.trim() !== '' ? valor : 6;
+    const nuevo = Math.min(16, Math.max(1, Math.round((base + delta) * 2) / 2));
+    setLimiteDiario(String(nuevo));
+    setError('');
+    setMensajeExito('');
+  }
+
+  const BOTON_PASO =
+    'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-[#e5e7f8] bg-[#f2f3ff] text-[#63518b] ' +
+    'transition-colors hover:bg-[#ebedfe] disabled:cursor-not-allowed disabled:opacity-60 ' +
+    'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[#63518b]';
+
   return (
     <section className="max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h1 className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-bold text-[#181b27]`}>
-          Configuración
+      <div className="relative mb-6 overflow-hidden">
+        <DoodleConfeti className="absolute -top-2 right-0 hidden h-24 w-40 opacity-80 sm:block" />
+        <h1 className={`${FONT_HEADLINE} relative text-2xl sm:text-3xl font-extrabold tracking-tight text-[#181b27]`}>
+          {MC.limite.titulo}
         </h1>
 
-        <p className="mt-2 text-sm sm:text-base text-[#49454f]">
-          Configura el máximo de horas que puedes planificar en un mismo día.
+        <p className="relative mt-2 max-w-xl text-sm sm:text-base text-[#49454f]">
+          {MC.limite.subtitulo} Te avisamos cuando un día quede por encima.
         </p>
       </div>
 
       <form className={CARD} onSubmit={guardarLimite} noValidate>
         <div>
           <h2 className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>
-            Límite diario de trabajo
+            Horas máximas de trabajo por día
           </h2>
 
           <p className="mt-1 text-sm text-[#49454f]">
-            Este límite se utilizará para detectar posibles conflictos de planificación.
+            Se usa para avisarte cuando las gestiones de un mismo día suman más horas de las que
+            quieres trabajar.
           </p>
         </div>
 
@@ -177,38 +201,67 @@ export default function Configuracion() {
             Horas máximas por día
           </label>
 
-          <div className="relative">
-            <span
-              className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#625d66] pointer-events-none"
-              aria-hidden="true"
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className={BOTON_PASO}
+              onClick={() => ajustar(-0.5)}
+              disabled={guardando || cargando || (valorValido && valor <= 1)}
+              aria-label="Bajar media hora"
             >
-              schedule
-            </span>
+              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">remove</span>
+            </button>
 
-            <input
-              id="limite-diario"
-              name="limite-diario"
-              type="number"
-              min="1"
-              max="16"
-              step="0.01"
-              value={limiteDiario}
-              onChange={(e) => {
-                setLimiteDiario(e.target.value);
-                setError('');
-                setMensajeExito('');
-              }}
-              className={`${INPUT} pl-10`}
-              aria-describedby={
-                `limite-diario-ayuda${error ? ' limite-diario-error' : ''}`
-              }
-              aria-invalid={Boolean(error)}
-              disabled={guardando || cargando}
-            />
+            <div className="relative flex-1">
+              <span
+                className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#625d66] pointer-events-none"
+                aria-hidden="true"
+              >
+                hourglass_top
+              </span>
+
+              <input
+                id="limite-diario"
+                name="limite-diario"
+                type="number"
+                min="1"
+                max="16"
+                step="0.5"
+                inputMode="decimal"
+                value={limiteDiario}
+                onChange={(e) => {
+                  setLimiteDiario(e.target.value);
+                  setError('');
+                  setMensajeExito('');
+                }}
+                className={`${INPUT} pl-10 pr-16`}
+                aria-describedby={
+                  `limite-diario-ayuda${error ? ' limite-diario-error' : ''}`
+                }
+                aria-invalid={Boolean(error)}
+                disabled={guardando || cargando}
+              />
+              <span
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#625d66] pointer-events-none"
+                aria-hidden="true"
+              >
+                horas
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className={BOTON_PASO}
+              onClick={() => ajustar(0.5)}
+              disabled={guardando || cargando || (valorValido && valor >= 16)}
+              aria-label="Subir media hora"
+            >
+              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">add</span>
+            </button>
           </div>
 
           <p id="limite-diario-ayuda" className="mt-1.5 text-xs text-[#49454f]">
-            Ingresa un valor entre 1 y 16 horas.
+            Entre 1 y 16 horas, de media en media hora. Es una cantidad de horas, no una hora del reloj.
           </p>
 
           {error && (

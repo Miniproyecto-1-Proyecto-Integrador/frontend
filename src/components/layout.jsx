@@ -8,11 +8,36 @@ import { CARD_HEADER_ICON, FONT_HEADLINE } from './ui';
 // que ya existe. "Mis Eventos" apunta a /evento, un listado plano
 // (GET /api/events/) que permite navegar a los eventos ya creados.
 const NAV_ITEMS = [
-  { to: '/hoy', label: 'Hoy', icon: 'today' },
-  { to: '/crear', label: 'Crear Evento', icon: 'add_circle' },
-  { to: '/evento', label: 'Mis Eventos', icon: 'event_available' },
-  { to: '/configuracion', label: 'Configuración', icon: 'settings' },
-  { to: '/progreso', label: 'Progreso y Métricas', icon: 'query_stats' },
+  {
+    to: '/hoy',
+    label: 'Hoy',
+    icon: 'today',
+    descripcion: 'Las gestiones que tienes pendientes, ordenadas por prioridad.',
+  },
+  {
+    to: '/crear',
+    label: 'Crear Evento',
+    icon: 'add_circle',
+    descripcion: 'Registra un evento nuevo y arma su plan de gestiones.',
+  },
+  {
+    to: '/evento',
+    label: 'Mis Eventos',
+    icon: 'event_available',
+    descripcion: 'Todos tus eventos: ábrelos para ver y editar sus gestiones.',
+  },
+  {
+    to: '/configuracion',
+    label: 'Límite diario',
+    icon: 'hourglass_top',
+    descripcion: 'Elige cuántas horas máximo quieres trabajar por día.',
+  },
+  {
+    to: '/progreso',
+    label: 'Progreso y Métricas',
+    icon: 'query_stats',
+    descripcion: 'Qué tanto has avanzado en la preparación de cada evento.',
+  },
 ];
 
 const FOCO =
@@ -105,7 +130,7 @@ export default function Layout() {
   }, [perfilAbierto]);
 
   return (
-    <div className="min-h-screen bg-[#faf8ff] text-[#181b27]">
+    <div className="min-h-screen bg-[#faf8ff] bg-[radial-gradient(#e5e7f8_1px,transparent_1px)] [background-size:22px_22px] text-[#181b27]">
       {/* Enlace para saltar la navegación (WCAG 2.4.1). Solo se ve al recibir
           el foco con Tab; lleva directo al contenido principal. */}
       <a
@@ -167,20 +192,49 @@ export default function Layout() {
         </div>
 
         <div className="flex flex-col gap-1.5 px-4">
-          {NAV_ITEMS.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${FOCO} ${
-                  isActive ? 'bg-[#7c69a5] text-white shadow-sm' : 'text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27]'
-                }`
-              }
-            >
-              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
-              {item.label}
-            </NavLink>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const idDescripcion = `nav-desc-${item.to.slice(1)}`;
+            return (
+              // group: al pasar el mouse (o enfocar con teclado) aparece la descripción
+              // a la derecha del menú. En pantallas táctiles no hay hover, así que
+              // por debajo de lg la descripción se muestra siempre bajo el nombre.
+              <div key={item.to} className="group relative">
+                <NavLink
+                  to={item.to}
+                  aria-describedby={idDescripcion}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${FOCO} ${
+                      isActive ? 'bg-[#7c69a5] text-white shadow-sm' : 'text-[#49454f] hover:bg-[#f2f3ff] hover:text-[#181b27]'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className="material-symbols-outlined text-[20px]" aria-hidden="true">{item.icon}</span>
+                      <span className="flex min-w-0 flex-col">
+                        {item.label}
+                        {/* Sin opacity: el color es sólido para no bajar el contraste. */}
+                        <span
+                          aria-hidden="true"
+                          className={`text-xs font-normal lg:hidden ${isActive ? 'text-white' : 'text-[#49454f]'}`}
+                        >
+                          {item.descripcion}
+                        </span>
+                      </span>
+                    </>
+                  )}
+                </NavLink>
+
+                <span
+                  id={idDescripcion}
+                  role="tooltip"
+                  className="pointer-events-none invisible absolute left-full top-1/2 z-50 ml-3 hidden w-60 -translate-y-1/2 rounded-xl border border-[#c9cbe0] bg-white px-3.5 py-2.5 text-[13px] font-medium leading-snug text-[#181b27] shadow-[0_8px_30px_-8px_rgba(99,81,139,0.3)] group-hover:visible group-focus-within:visible lg:block"
+                >
+                  {item.descripcion}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </nav>
 

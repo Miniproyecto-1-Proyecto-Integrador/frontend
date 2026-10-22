@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import SuccessModal from './components/SuccessCard';
 import {
+  BOTON_ACENTO,
   BOTON_PELIGRO,
   BOTON_PRINCIPAL, BOTON_SECUNDARIO,
+  BOTON_TERCIARIO,
+  CampoHoras,
   CARD, CARD_HEADER_ICON,
   ERROR,
   FONT_HEADLINE,
@@ -30,6 +33,7 @@ import {
   updateSubtask,
   getProximaFechaDisponible,
 } from './services/events';
+import { DoodleConfeti, DoodleLista } from './components/Doodles';
 import { GestionEstado } from './components/EstadoGestion';
 import ProgresoBarra from './components/ProgresoBarra';
 import { MC } from './helpers/microcopy';
@@ -148,6 +152,10 @@ export default function DetalleEvento() {
   // Fallback de foco al cerrar el modal cuando la acción no deja un
   // elemento propio al que volver (ej. se eliminó la gestión completa).
   const planHeadingRef = useRef(null);
+  // Botón "Agregar gestión" del encabezado del plan: cada clic sube la señal y el
+  // formulario se abre (o recibe el foco si ya estaba abierto).
+  const [senalNueva, setSenalNueva] = useState(0);
+  const agregarBtnRef = useRef(null);
 
   function mostrarFeedback({ variant = 'exito', titulo, mensaje, focoRef, onCerrar }) {
     setFeedback({ open: true, variant, titulo, mensaje, focoRef, onCerrar });
@@ -220,62 +228,91 @@ export default function DetalleEvento() {
         </ol>
       </nav>
 
-      {/* Cabecera con un leve acento decorativo detrás del título — el único
-          "momento" visual de la página; el resto se mantiene tranquilo. */}
-      <div className="relative mb-4">
-        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl" aria-hidden="true">
-          <div className="absolute -top-14 -left-10 w-56 h-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-50 blur-2xl" />
+      {/* Cabecera: título y progreso juntos (como en /progreso), para ver de un vistazo
+          cómo va el evento antes de entrar al detalle. */}
+      <div className={`${CARD} relative mb-2 overflow-hidden !gap-5`}>
+        <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+          <div className="absolute -top-14 -left-10 h-56 w-56 rounded-full bg-gradient-to-br from-[#d2e4ff] via-[#e4d9ff] to-transparent opacity-50 blur-2xl" />
+          <DoodleConfeti className="absolute -top-1 right-3 hidden h-20 w-36 opacity-70 sm:block" />
         </div>
-        {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className={`${FONT_HEADLINE} relative text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
-        >
-          {evento.nombre}
-        </h1>
+
+        <div className="relative flex flex-col gap-1 sm:pr-40">
+          {/* tabIndex=-1: no entra en el orden de tab, solo recibe foco por programa */}
+          <h1
+            ref={headingRef}
+            tabIndex={-1}
+            className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
+          >
+            {evento.nombre}
+          </h1>
+        </div>
+
+        <section aria-labelledby="progreso-evento-heading" className="relative flex flex-col gap-2">
+          <h2 id="progreso-evento-heading" className={`${FONT_HEADLINE} text-sm font-bold text-[#181b27]`}>
+            {MC.progreso.titulo}
+          </h2>
+          <ProgresoBarra eventoId={id} claveActualizacion={claveProgreso} />
+        </section>
       </div>
 
       <div className="flex flex-col gap-8">
+        {/* Datos del evento arriba, luego el plan logístico. */}
         <EventoCard
           evento={evento}
           onGuardado={(actualizado) => setEvento(actualizado)}
           onEliminado={() => navigate('/evento')}
           onFeedback={mostrarFeedback}
         />
-        
-      <section aria-labelledby="progreso-evento-heading" className={`${CARD} !gap-3`}>
-         <h2 id="progreso-evento-heading" className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27]`}>
-          {MC.progreso.titulo}
-      </h2>
-      <ProgresoBarra eventoId={id} claveActualizacion={claveProgreso} />
-      </section>
 
         <div className={CARD}>
-          <div className="flex items-center gap-3 pb-4 border-b border-[#ebedfe]">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d2e4ff] to-[#e8f0ff] flex items-center justify-center text-[#3c608b] shadow-sm">
-              <span className="material-symbols-outlined text-[22px]" aria-hidden="true">checklist_rtl</span>
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#ebedfe]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d2e4ff] to-[#e8f0ff] flex items-center justify-center text-[#3c608b] shadow-sm">
+                <span className="material-symbols-outlined text-[22px]" aria-hidden="true">checklist_rtl</span>
+              </div>
+              <div>
+                <h2
+                  ref={planHeadingRef}
+                  tabIndex={-1}
+                  className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27] focus:outline-none`}
+                >
+                  Plan logístico
+                </h2>
+                {subtareas.length > 0 && (
+                  <p className="text-xs text-[#625d66]">
+                    {subtareas.length} {subtareas.length === 1 ? 'gestión' : 'gestiones'} en el plan
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <h2
-                ref={planHeadingRef}
-                tabIndex={-1}
-                className={`${FONT_HEADLINE} text-lg font-bold text-[#181b27] focus:outline-none`}
-              >
-                Plan logístico
-              </h2>
-              {subtareas.length > 0 && (
-                <p className="text-xs text-[#625d66]">
-                  {subtareas.length} {subtareas.length === 1 ? 'gestión' : 'gestiones'} en el plan
-                </p>
-              )}
-            </div>
+
+            <button
+              ref={agregarBtnRef}
+              type="button"
+              className={`${BOTON_PRINCIPAL} w-full sm:w-auto`}
+              onClick={() => setSenalNueva((n) => n + 1)}
+            >
+              <span className="material-symbols-outlined text-[20px]" aria-hidden="true">add_circle</span>
+              Agregar gestión
+            </button>
           </div>
 
+          {/* El formulario se abre aquí arriba (no al final de la lista): con muchas
+              gestiones no hay que bajar hasta el fondo para agregar una. */}
+          <NuevaGestionForm
+            eventoId={id}
+            senalAbrir={senalNueva}
+            triggerRef={agregarBtnRef}
+            onCreada={(nueva) => setSubtareas((prev) => [...prev, nueva])}
+          />
+
           {subtareas.length === 0 && (
-            <div className="flex flex-col items-center text-center gap-2 py-6">
-              <span className="material-symbols-outlined text-[28px] text-[#625d66]" aria-hidden="true">playlist_add</span>
+            <div className="flex flex-col items-center text-center gap-3 py-6">
+              <DoodleLista className="h-24 w-32" />
               <p className="text-[#49454f] italic">Este evento no tiene gestiones logísticas todavía.</p>
+              <p className="text-sm text-[#625d66]">
+                Usa «Agregar gestión» para crear la primera tarea del plan.
+              </p>
             </div>
           )}
 
@@ -299,11 +336,6 @@ export default function DetalleEvento() {
               ))}
             </ul>
           )}
-
-          <NuevaGestionForm
-            eventoId={id}
-            onCreada={(nueva) => setSubtareas((prev) => [...prev, nueva])}
-          />
         </div>
       </div>
 
@@ -486,8 +518,8 @@ function EventoCard({ evento, onGuardado, onEliminado, onFeedback }) {
           </div>
           <div className="flex items-start gap-2">
             <dt className="inline-flex items-center gap-2 text-[#625d66]">
-              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">person</span>
-              Contacto:
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">contact_phone</span>
+              {MC.contacto.etiquetaVista}
             </dt>
             <dd className="min-w-0 break-words font-semibold">{evento.cliente_contacto}</dd>
           </div>
@@ -647,16 +679,19 @@ function EventoCard({ evento, onGuardado, onEliminado, onFeedback }) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="ev-contacto" className={LABEL}>Contacto del cliente</label>
+        <label htmlFor="ev-contacto" className={LABEL}>{MC.contacto.etiqueta}</label>
         <div className={INPUT_WRAP}>
-          <span className={INPUT_ICON} aria-hidden="true">person</span>
+          <span className={INPUT_ICON} aria-hidden="true">contact_phone</span>
           <input
             id="ev-contacto" type="text" className={INPUT} value={clienteContacto}
+            autoComplete="off"
+            placeholder={MC.contacto.placeholder}
             onChange={(e) => { setClienteContacto(e.target.value); limpiarErrorCampo('cliente_contacto'); }}
             aria-invalid={Boolean(fieldErrors.cliente_contacto)}
-            aria-describedby={fieldErrors.cliente_contacto ? 'ev-error-contacto' : undefined}
+            aria-describedby={`ev-contacto-ayuda${fieldErrors.cliente_contacto ? ' ev-error-contacto' : ''}`}
           />
         </div>
+        <p id="ev-contacto-ayuda" className="text-xs text-[#625d66]">{MC.contacto.ayuda}</p>
         {fieldErrors.cliente_contacto && <p id="ev-error-contacto" className={ERROR} role="alert">{fieldErrors.cliente_contacto[0]}</p>}
       </div>
 
@@ -1230,56 +1265,70 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
   if (modo === 'ver') {
     return (
       <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3 transition-shadow hover:shadow-sm">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
-          <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
-          {subtarea.titulo}
-        </h3>
-        <p className="text-xs text-[#625d66] flex items-center gap-3 flex-wrap">
-          <span className="inline-flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">event</span>
-            {subtarea.fecha_objetivo}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
-            {subtarea.horas_estimadas} h estimadas
-          </span>
-        </p>
-
-        <GestionEstado eventoId={eventoId} gestion={subtarea} onActualizada={onGuardada} />
-
-        <div className="flex gap-3 flex-wrap">
-          <button
-            ref={editarBtnRef}
-            type="button"
-            className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
-            onClick={() => setModo('editar')}
-            aria-label={`Editar gestión: ${subtarea.titulo}`}
-          >
-            Editar
-          </button>
-
-          <button
-            ref={reprogramarBtnRef}
-            type="button"
-            className={`${BOTON_SECUNDARIO} py-1.5 px-4 text-xs`}
-            onClick={abrirReprogramacion}
-            aria-label={`Reprogramar gestión: ${subtarea.titulo}`}
-          >
-            Reprogramar
-          </button>
-
-          {!confirmando && (
-            <button
-              ref={eliminarBtnRef}
-              type="button"
-              className={`${BOTON_PELIGRO} py-1.5 px-4 text-xs`}
-              onClick={() => setConfirmando(true)}
-              aria-label={`Eliminar gestión: ${subtarea.titulo}`}
-            >
-              Eliminar
-            </button>
-          )}
+        <div className="flex flex-col gap-1">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
+            <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
+            {subtarea.titulo}
+          </h3>
+          <p className="text-xs text-[#625d66] flex items-center gap-3 flex-wrap">
+            <span className="inline-flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">event</span>
+              {subtarea.fecha_objetivo}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="material-symbols-outlined text-[14px]" aria-hidden="true">hourglass_top</span>
+              Duración: {subtarea.horas_estimadas} h
+            </span>
+          </p>
         </div>
+
+        {/* Una sola fila: estado + acciones. "Reprogramar" va destacado (para cambiar la
+            fecha); "Editar" queda en gris y al final para que no se use por error. */}
+        <GestionEstado
+          eventoId={eventoId}
+          gestion={subtarea}
+          onActualizada={onGuardada}
+          variant="fila"
+          extraAcciones={
+            <>
+              <button
+                ref={reprogramarBtnRef}
+                type="button"
+                className={BOTON_ACENTO}
+                onClick={abrirReprogramacion}
+                aria-label={`Reprogramar gestión: ${subtarea.titulo}`}
+              >
+                <span className="material-symbols-outlined text-[16px]" aria-hidden="true">event_repeat</span>
+                Reprogramar
+              </button>
+
+              <span className="flex items-center gap-1 sm:ml-auto">
+                <button
+                  ref={editarBtnRef}
+                  type="button"
+                  className={BOTON_TERCIARIO}
+                  onClick={() => setModo('editar')}
+                  aria-label={`Editar gestión: ${subtarea.titulo}`}
+                >
+                  <span className="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+                  Editar
+                </button>
+
+                {!confirmando && (
+                  <button
+                    ref={eliminarBtnRef}
+                    type="button"
+                    className={`${BOTON_PELIGRO} py-1.5 px-3 text-xs`}
+                    onClick={() => setConfirmando(true)}
+                    aria-label={`Eliminar gestión: ${subtarea.titulo}`}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </span>
+            </>
+          }
+        />
 
         {confirmando && (
           <div
@@ -1428,30 +1477,30 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
         />
         {errorField === 'titulo' && <p id={idError} className={ERROR} role="alert">Este campo es obligatorio.</p>}
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor={`sub-fecha-${subtarea.id}`} className={LABEL}>Fecha objetivo</label>
           <InputIcono icon="event"
             id={`sub-fecha-${subtarea.id}`} type="date" value={fechaObjetivo}
             onChange={(e) => { setFechaObjetivo(e.target.value); setErrorField(null); setErrorMensaje(''); }}
             aria-invalid={errorField === 'fecha'}
-            aria-describedby={errorField === 'fecha' ? `sub-fecha-error-${subtarea.id}` : undefined}
+            aria-describedby={`sub-fecha-ayuda-${subtarea.id}${errorField === 'fecha' ? ` sub-fecha-error-${subtarea.id}` : ''}`}
           />
+          <p id={`sub-fecha-ayuda-${subtarea.id}`} className="text-xs text-[#625d66]">
+            ¿Solo quieres moverla de día? Cancela y usa «Reprogramar».
+          </p>
           {errorField === 'fecha' && (
             <p id={`sub-fecha-error-${subtarea.id}`} className={ERROR} role="alert">
               {errorMensaje}
             </p>
           )}
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor={`sub-horas-${subtarea.id}`} className={LABEL}>Horas estimadas</label>
-          <InputIcono icon= "schedule"
-            id={`sub-horas-${subtarea.id}`} type="number" min="0.5" step="0.5"
-            value={horasEstimadas}
-            onChange={(e) => { setHorasEstimadas(e.target.value); setErrorField(null); }}
-            aria-invalid={errorField === 'horas'}
-          />
-        </div>
+        <CampoHoras
+          id={`sub-horas-${subtarea.id}`}
+          value={horasEstimadas}
+          onChange={(e) => { setHorasEstimadas(e.target.value); setErrorField(null); }}
+          aria-invalid={errorField === 'horas'}
+        />
       </div>
 
       <div className="flex gap-3">
@@ -1481,7 +1530,7 @@ function nuevaGestionVacia() {
   return { titulo: '', fecha_objetivo: '', horas_estimadas: '' };
 }
 
-function NuevaGestionForm({ eventoId, onCreada }) {
+function NuevaGestionForm({ eventoId, onCreada, senalAbrir = 0, triggerRef = null }) {
   const [abierto, setAbierto] = useState(false);
   const [campos, setCampos] = useState(nuevaGestionVacia());
   const [estado, setEstado] = useState('idle'); // idle | guardando | error
@@ -1494,7 +1543,8 @@ function NuevaGestionForm({ eventoId, onCreada }) {
   const [fechaPropuesta, setFechaPropuesta] = useState(null);
   const [errorFechaPropuesta, setErrorFechaPropuesta] = useState(null);
 
-  const toggleBtnRef = useRef(null);
+  const refLocal = useRef(null);
+  const toggleBtnRef = triggerRef ?? refLocal; // a dónde vuelve el foco al cerrar
   const conflictoDialogRef = useRef(null);
   const conflictoHeadingRef = useRef(null);
 
@@ -1507,6 +1557,14 @@ useFocusTrap(conflicto, conflictoDialogRef);
   useEffect(() => {
     if (abierto) focusField('nueva-titulo');
   }, [abierto]);
+
+  // Señal del botón "Agregar gestión" del encabezado: abre el formulario, o solo mueve
+  // el foco al título si ya estaba abierto.
+  useEffect(() => {
+    if (!senalAbrir) return;
+    setAbierto(true);
+    focusField('nueva-titulo');
+  }, [senalAbrir]);
 
   useEscapeToClose(abierto && !conflicto, () => {
     setAbierto(false);
@@ -1681,20 +1739,8 @@ async function buscarProximaFecha() {
   }
 
 
-  if (!abierto) {
-    return (
-      <button
-        ref={toggleBtnRef}
-        type="button"
-        className={`${BOTON_SECUNDARIO} self-start flex items-center gap-2`}
-        onClick={() => setAbierto(true)}
-        aria-expanded={false}
-      >
-        <span className="material-symbols-outlined text-[18px]" aria-hidden="true">add_circle</span>
-        Agregar gestión
-      </button>
-    );
-  }
+  // Cerrado: no se dibuja nada; el botón del encabezado del plan lo abre.
+  if (!abierto) return null;
 
   const idError = 'nueva-gestion-error';
 
@@ -1725,7 +1771,7 @@ async function buscarProximaFecha() {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-3">
         <div className="flex flex-col gap-1">
           <label htmlFor="nueva-fecha" className={LABEL}>Fecha objetivo</label>
           <InputIcono icon="calendar_month"
@@ -1738,20 +1784,14 @@ async function buscarProximaFecha() {
             aria-describedby={error ? idError : undefined}
           />
         </div>
-        <div className="flex flex-col gap-1">
-          <label htmlFor="nueva-horas" className={LABEL}>Horas estimadas</label>
-          <InputIcono icon="timer"
-            id="nueva-horas"
-            type="number"
-            min="0.5"
-            step="0.5"
-            value={campos.horas_estimadas}
-            disabled={estado === 'guardando'}
-            onChange={(e) => actualizarCampo('horas_estimadas', e.target.value)}
-            aria-invalid={errorField === 'horas'}
-            aria-describedby={error ? idError : undefined}
-          />
-        </div>
+        <CampoHoras
+          id="nueva-horas"
+          value={campos.horas_estimadas}
+          disabled={estado === 'guardando'}
+          onChange={(e) => actualizarCampo('horas_estimadas', e.target.value)}
+          aria-invalid={errorField === 'horas'}
+          describedBy={error ? idError : undefined}
+        />
       </div>
 
       <div aria-live="polite">

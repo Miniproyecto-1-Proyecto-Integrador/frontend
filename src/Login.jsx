@@ -86,6 +86,9 @@ export default function Login() {
                 <span className="material-symbols-outlined text-[24px]" aria-hidden="true">auto_schedule</span>
               </div>
               <div className="flex flex-col">
+                <p className="text-xs font-bold uppercase tracking-wider text-[#63518b]">
+                  Planify · Organizador de eventos
+                </p>
                 <h1
                   ref={headingRef}
                   tabIndex={-1}
@@ -93,9 +96,13 @@ export default function Login() {
                 >
                   Iniciar sesión
                 </h1>
-                <p className="text-sm text-[#49454f]">Ingresa a Planify con tu correo o usuario.</p>
               </div>
             </div>
+
+            <p className="-mt-2 rounded-xl bg-[#f2f3ff] px-4 py-3 text-sm text-[#181b27]">
+              Planify te ayuda a <strong>planificar, ejecutar y reprogramar la logística de tus
+              eventos</strong>. Ingresa con tu correo o usuario para continuar.
+            </p>
 
             {error && (
               <div
@@ -202,14 +209,22 @@ export default function Login() {
         </div>
 
         <div className="relative flex flex-col gap-8">
-          <h2 className={`${FONT_HEADLINE} text-3xl font-extrabold leading-tight tracking-tight`}>
-            Tus eventos, <br /> bajo control.
-          </h2>
-          <ul className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4">
+            <p className="text-sm font-bold uppercase tracking-widest text-[#eaddff]">
+              Organizador de eventos
+            </p>
+            <h2 className={`${FONT_HEADLINE} text-4xl xl:text-5xl font-extrabold leading-tight tracking-tight`}>
+              Tus eventos, <br /> bajo control.
+            </h2>
+            <p className="max-w-md text-lg text-white/90">
+              Planifica la logística de cada evento, sigue tu avance y reprograma sin perder el hilo.
+            </p>
+          </div>
+          <ul className="flex flex-col gap-5">
             {BENEFICIOS.map((b) => (
-              <li key={b.icon} className="flex items-center gap-3 text-[15px] text-white/90">
-                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/15">
-                  <span className="material-symbols-outlined text-[20px]">{b.icon}</span>
+              <li key={b.icon} className="flex items-center gap-4 text-lg font-medium text-white">
+                <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-white/20">
+                  <span className="material-symbols-outlined text-[26px]">{b.icon}</span>
                 </span>
                 {b.texto}
               </li>
@@ -217,7 +232,7 @@ export default function Login() {
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/90">Organizador de eventos</p>
+        <p className="relative text-sm text-white/90">Planify · Proyecto Integrador I</p>
       </aside>
     </div>
   );

@@ -81,6 +81,21 @@ export const MC = {
     reintentar: 'Reintentar',
   },
 
+  // Campo "Contacto del cliente": antes no se sabía si era nombre, teléfono o correo.
+  contacto: {
+    etiqueta: 'Contacto del cliente (teléfono o correo)',
+    placeholder: 'Ej: 300 123 4567 o cliente@correo.com',
+    ayuda: 'Un teléfono o un correo para poder localizar al cliente.',
+    etiquetaVista: 'Contacto del cliente:',
+  },
+
+  // Límite diario (antes "Configuración").
+  limite: {
+    titulo: 'Límite diario',
+    subtitulo: 'Define cuántas horas como máximo quieres planificar en un mismo día.',
+    paso: 'Usa pasos de media hora (por ejemplo 3, 3,5 o 4).',
+  },
+
   hoy: {
     horasPendientes: (horas) => `${horas} h pendientes`,
   },
