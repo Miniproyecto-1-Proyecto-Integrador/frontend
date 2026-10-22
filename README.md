@@ -30,17 +30,6 @@ React 18 · Vite 5 · React Router 7 · Tailwind CSS 4
    cp .env.example .env
 ```
 
-3. Ajusta `VITE_API_URL` en `.env` (sin `/` al final):
-
-   | Entorno | Valor de `VITE_API_URL` |
-   | --- | --- |
-   | Backend local | `http://127.0.0.1:8000/api` |
-   | Backend en producción | `https://backend-wy15.onrender.com/api` |
-
-   Si la variable no está definida, la app usa `http://127.0.0.1:8000/api` por defecto. La URL se lee solo en `src/services/api.js`; nunca se escribe directamente en los componentes.
-
-> El archivo `.env` está en `.gitignore`. No lo subas al repositorio.
-
 ## Ejecución en local
 
 ```bash
