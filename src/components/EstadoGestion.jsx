@@ -48,6 +48,7 @@ export function GestionEstado({
   confirmacionInline = true,
   variant = 'bloque',
   extraAcciones = null,
+  mostrarChip = true, // en variant 'fila', quien llama puede pintar el chip junto al título
 }) {
   const titulo = gestion.titulo;
   const notaGuardada = gestion.nota ?? '';
@@ -141,7 +142,11 @@ export function GestionEstado({
     guardar('pospuesta', texto.trim());
   }
 
-  const compacto = 'py-1.5 px-4 text-xs';
+  // En celular los botones son más altos (zona táctil cómoda) y un poco más grandes.
+  const compacto = 'py-1.5 px-4 text-xs max-sm:min-h-11 max-sm:text-sm';
+  // Acciones de estado: en celular se reparten el ancho de la fila en partes iguales
+  // (Hecha | Posponer); desde sm vuelven a ser botones sueltos que saltan de línea.
+  const accionesEstado = 'grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-wrap';
 
   const notaEl = nota ? (
     <p className="whitespace-pre-wrap break-words text-xs text-[#49454f]">
@@ -198,9 +203,13 @@ export function GestionEstado({
   return (
     <div className="flex flex-col gap-3">
       {variant === 'fila' ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <EstadoChip estado={estado} />
-          {botonesEl}
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+          {mostrarChip && (
+            <div>
+              <EstadoChip estado={estado} />
+            </div>
+          )}
+          <div className={accionesEstado}>{botonesEl}</div>
           {extraAcciones}
         </div>
       ) : (
@@ -209,7 +218,7 @@ export function GestionEstado({
             <EstadoChip estado={estado} />
           </div>
           {notaEl}
-          <div className="flex flex-wrap gap-2">{botonesEl}</div>
+          <div className={accionesEstado}>{botonesEl}</div>
         </>
       )}
 

@@ -34,7 +34,7 @@ import {
   getProximaFechaDisponible,
 } from './services/events';
 import { DoodleConfeti, DoodleLista } from './components/Doodles';
-import { GestionEstado } from './components/EstadoGestion';
+import { EstadoChip, GestionEstado } from './components/EstadoGestion';
 import ProgresoBarra from './components/ProgresoBarra';
 import { MC } from './helpers/microcopy';
 import { useTituloPagina } from './helpers/useTituloPagina';
@@ -1266,10 +1266,11 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
     return (
       <div className="p-4 rounded-xl border border-[#ebedfe] bg-[#faf8ff] flex flex-col gap-3 transition-shadow hover:shadow-sm">
         <div className="flex flex-col gap-1">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-[#181b27]">
-            <span className="material-symbols-outlined text-[18px] text-[#63518b]" aria-hidden="true">task_alt</span>
-            {subtarea.titulo}
-          </h3>
+          {/* El estado va a la izquierda del nombre de la gestión (antes había un ícono decorativo). */}
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
+            <EstadoChip estado={subtarea.estado} />
+            <h3 className={`${FONT_HEADLINE} text-base font-bold text-[#181b27]`}>{subtarea.titulo}</h3>
+          </div>
           <p className="text-xs text-[#625d66] flex items-center gap-3 flex-wrap">
             <span className="inline-flex items-center gap-1">
               <span className="material-symbols-outlined text-[14px]" aria-hidden="true">event</span>
@@ -1289,12 +1290,13 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
           gestion={subtarea}
           onActualizada={onGuardada}
           variant="fila"
+          mostrarChip={false}
           extraAcciones={
             <>
               <button
                 ref={reprogramarBtnRef}
                 type="button"
-                className={BOTON_ACENTO}
+                className={`${BOTON_ACENTO} justify-center max-sm:min-h-11 max-sm:text-sm`}
                 onClick={abrirReprogramacion}
                 aria-label={`Reprogramar gestión: ${subtarea.titulo}`}
               >
@@ -1302,11 +1304,11 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
                 Reprogramar
               </button>
 
-              <span className="flex items-center gap-1 sm:ml-auto">
+              <span className="grid grid-flow-col auto-cols-fr gap-2 sm:ml-auto sm:flex sm:items-center sm:gap-1">
                 <button
                   ref={editarBtnRef}
                   type="button"
-                  className={BOTON_TERCIARIO}
+                  className={`${BOTON_TERCIARIO} justify-center max-sm:min-h-11 max-sm:border max-sm:border-[#e5e7f8] max-sm:text-sm`}
                   onClick={() => setModo('editar')}
                   aria-label={`Editar gestión: ${subtarea.titulo}`}
                 >
@@ -1318,7 +1320,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
                   <button
                     ref={eliminarBtnRef}
                     type="button"
-                    className={`${BOTON_PELIGRO} py-1.5 px-3 text-xs`}
+                    className={`${BOTON_PELIGRO} py-1.5 px-3 text-xs max-sm:min-h-11 max-sm:text-sm`}
                     onClick={() => setConfirmando(true)}
                     aria-label={`Eliminar gestión: ${subtarea.titulo}`}
                   >
