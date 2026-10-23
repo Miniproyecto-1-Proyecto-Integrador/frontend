@@ -41,7 +41,15 @@ export function EstadoChip({ estado }) {
  * El chip cambia al instante (optimista). Si el guardado falla, se revierte,
  * se muestra un error amigable y la nota escrita NO se borra.
  */
-export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionInline = true }) {
+export function GestionEstado({
+  eventoId,
+  gestion,
+  onActualizada,
+  confirmacionInline = true,
+  variant = 'bloque',
+  extraAcciones = null,
+  mostrarChip = true, // en variant 'fila', quien llama puede pintar el chip junto al título
+}) {
   const titulo = gestion.titulo;
   const notaGuardada = gestion.nota ?? '';
 
@@ -134,21 +142,20 @@ export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionIn
     guardar('pospuesta', texto.trim());
   }
 
-  const compacto = 'py-1.5 px-4 text-xs';
+  // En celular los botones son más altos (zona táctil cómoda) y un poco más grandes.
+  const compacto = 'py-1.5 px-4 text-xs max-sm:min-h-11 max-sm:text-sm';
+  // Acciones de estado: en celular se reparten el ancho de la fila en partes iguales
+  // (Hecha | Posponer); desde sm vuelven a ser botones sueltos que saltan de línea.
+  const accionesEstado = 'grid grid-flow-col auto-cols-fr gap-2 sm:flex sm:flex-wrap';
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <EstadoChip estado={estado} />
-      </div>
+  const notaEl = nota ? (
+    <p className="whitespace-pre-wrap break-words text-xs text-[#49454f]">
+      <span className="font-semibold text-[#181b27]">{MC.nota.prefijo}:</span> {nota}
+    </p>
+  ) : null;
 
-      {nota && (
-        <p className="whitespace-pre-wrap break-words text-xs text-[#49454f]">
-          <span className="font-semibold text-[#181b27]">{MC.nota.prefijo}:</span> {nota}
-        </p>
-      )}
-
-      <div className="flex flex-wrap gap-2">
+  const botonesEl = (
+    <>
         {estado !== 'hecha' && (
           <button
             type="button"
@@ -187,7 +194,35 @@ export function GestionEstado({ eventoId, gestion, onActualizada, confirmacionIn
             {MC.acciones.volverPendiente}
           </button>
         )}
-      </div>
+    </>
+  );
+
+  // variant 'fila': estado + acciones (y las extra de quien llama) en UNA sola fila
+  // que salta de línea si no cabe. Ocupa mucho menos alto cuando hay muchas gestiones.
+  // variant 'bloque' (por defecto, usado en /hoy): el estado arriba y las acciones debajo.
+  return (
+    <div className="flex flex-col gap-3">
+      {variant === 'fila' ? (
+        <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
+          {mostrarChip && (
+            <div>
+              <EstadoChip estado={estado} />
+            </div>
+          )}
+          <div className={accionesEstado}>{botonesEl}</div>
+          {extraAcciones}
+        </div>
+      ) : (
+        <>
+          <div>
+            <EstadoChip estado={estado} />
+          </div>
+          {notaEl}
+          <div className={accionesEstado}>{botonesEl}</div>
+        </>
+      )}
+
+      {variant === 'fila' && notaEl}
 
       {formAbierto && (
         <form

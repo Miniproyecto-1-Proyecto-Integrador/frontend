@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { EstadoProgreso } from './components/ProgresoBarra';
 import ProgresoGeneral, { ProgresoGeneralSkeleton } from './components/ProgresoGeneral';
 import { BOTON_PRINCIPAL, CARD, FONT_HEADLINE, SkeletonLista } from './components/ui';
+import { DoodleCalendario } from './components/Doodles';
 import { MC } from './helpers/microcopy';
 import { useTituloPagina } from './helpers/useTituloPagina';
 import { getProgresoEvento, listEvents } from './services/events';
@@ -102,7 +103,7 @@ export default function Progreso() {
 
       {status === 'empty' && (
         <div className={`${CARD} items-center text-center py-10`}>
-          <span className="material-symbols-outlined text-[32px] text-[#625d66]" aria-hidden="true">event_available</span>
+          <DoodleCalendario className="h-24 w-32" />
           <p className="text-[#49454f] italic">{MC.paginaProgreso.vacio}</p>
           <Link to="/crear" className={BOTON_PRINCIPAL}>{MC.paginaProgreso.crear}</Link>
         </div>

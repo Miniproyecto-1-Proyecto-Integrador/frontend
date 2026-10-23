@@ -43,6 +43,22 @@ export const BOTON_PELIGRO =
   'transition-colors focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#ba1a1a] focus-visible:outline-offset-2 ' +
   'disabled:opacity-60 disabled:cursor-not-allowed';
 
+// Acción de apoyo destacada (p. ej. "Reprogramar"): morado suave, más visible que el
+// secundario pero sin competir con el botón principal.
+export const BOTON_ACENTO =
+  'py-1.5 px-4 rounded-xl bg-[#eaddff] hover:bg-[#dccbfa] text-[#3d3163] font-semibold text-xs border border-[#63518b]/25 ' +
+  'inline-flex items-center gap-1.5 transition-colors ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2 ' +
+  'disabled:opacity-60 disabled:cursor-not-allowed';
+
+// Acción de baja prioridad (p. ej. "Editar" una gestión): gris y sin borde, para que
+// no compita con las acciones principales como "Reprogramar".
+export const BOTON_TERCIARIO =
+  'py-1.5 px-3 rounded-xl bg-transparent hover:bg-[#ebedfe] text-[#625d66] hover:text-[#181b27] font-semibold text-xs ' +
+  'inline-flex items-center gap-1.5 transition-colors ' +
+  'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2 ' +
+  'disabled:opacity-60 disabled:cursor-not-allowed';
+
 export const PILL_BASE =
   'px-4 py-2 rounded-xl text-xs font-semibold border transition-all ' +
   'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#63518b] focus-visible:outline-offset-2';
@@ -61,6 +77,49 @@ export function InputIcono({ icon, className = '', ...props }) {
     <div className={INPUT_WRAP}>
       <span className={INPUT_ICON} aria-hidden="true">{icon}</span>
       <input className={`${INPUT} ${className}`} {...props} />
+    </div>
+  );
+}
+
+// Campo de CANTIDAD de horas (no de hora del reloj). Ícono de reloj de arena,
+// sufijo "horas" dentro del campo y una ayuda visible: así no se confunde con
+// los campos de hora tipo reloj (p. ej. "Hora de inicio del evento").
+//   describedBy: ids extra (p. ej. el de un mensaje de error) que se suman a la ayuda.
+export const AYUDA_HORAS = 'Cuántas horas te tomará (por ejemplo 2 o 1,5). No es una hora del reloj.';
+
+export function CampoHoras({
+  id,
+  label = 'Duración estimada',
+  ayuda = AYUDA_HORAS,
+  describedBy,
+  className = '',
+  ...props
+}) {
+  const ayudaId = `${id}-ayuda`;
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className={LABEL}>{label}</label>
+      <div className={INPUT_WRAP}>
+        <span className={INPUT_ICON} aria-hidden="true">hourglass_top</span>
+        <input
+          id={id}
+          type="number"
+          min="0.5"
+          step="0.5"
+          inputMode="decimal"
+          placeholder="Ej: 2"
+          className={`${INPUT} pr-16 ${className}`}
+          aria-describedby={[ayudaId, describedBy].filter(Boolean).join(' ')}
+          {...props}
+        />
+        <span
+          className="absolute right-3.5 text-xs font-semibold text-[#625d66] pointer-events-none"
+          aria-hidden="true"
+        >
+          horas
+        </span>
+      </div>
+      <p id={ayudaId} className="text-xs text-[#625d66]">{ayuda}</p>
     </div>
   );
 }

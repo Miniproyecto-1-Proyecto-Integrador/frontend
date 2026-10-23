@@ -7,6 +7,7 @@ import {
     LABEL,
     SkeletonLista,
 } from './components/ui';
+import { DoodleCalendario, DoodleConfeti } from './components/Doodles';
 import { esFalloDeRed, MENSAJE_ERROR_RED } from './helpers/errors';
 import { GestionEstado } from './components/EstadoGestion';
 import { MC } from './helpers/microcopy';
@@ -267,16 +268,20 @@ export default function Hoy() {
   return (
     <div className="flex flex-col gap-6 pb-16">
       {/* ---------- Cabecera ---------- */}
-      <div className="flex flex-col gap-1 py-1">
+      <div className="relative flex flex-col gap-1 overflow-hidden rounded-2xl border border-[#e5e7f8] bg-gradient-to-br from-[#f2f3ff] via-[#f5efff] to-[#e8f0ff] px-5 py-6 sm:px-8">
+        <DoodleConfeti className="absolute -right-2 top-1 hidden h-28 w-48 opacity-80 sm:block" />
         <h1
           ref={headingRef}
           tabIndex={-1}
-          className={`${FONT_HEADLINE} text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
+          className={`${FONT_HEADLINE} relative text-2xl sm:text-3xl font-extrabold text-[#181b27] tracking-tight focus:outline-none`}
         >
           Hoy
         </h1>
+        <p className="relative text-sm text-[#49454f]">
+          Tus gestiones pendientes, ordenadas por prioridad.
+        </p>
         {data && (
-          <p className="text-sm text-[#49454f]">
+          <p className="relative text-sm font-semibold text-[#3d3163]">
             {formatFecha(data.hoy)} · {data.total} {data.total === 1 ? 'gestión' : 'gestiones'}
           </p>
         )}
@@ -415,9 +420,11 @@ export default function Hoy() {
 
       {status === 'ok' && data.total === 0 && (
         <div className={`${CARD} items-center text-center py-10`}>
-          <span className="material-symbols-outlined text-[32px] text-[#625d66]" aria-hidden="true">
-            {hayFiltros ? 'search_off' : 'task_alt'}
-          </span>
+          {hayFiltros ? (
+            <span className="material-symbols-outlined text-[32px] text-[#625d66]" aria-hidden="true">search_off</span>
+          ) : (
+            <DoodleCalendario className="h-24 w-32" />
+          )}
           <p className="text-[#49454f] italic">
             {hayFiltros
               ? 'Ninguna gestión coincide con estos filtros.'

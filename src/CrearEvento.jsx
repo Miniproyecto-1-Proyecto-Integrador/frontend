@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BOTON_PRINCIPAL, BOTON_SECUNDARIO,
+  CampoHoras,
   CARD, CARD_HEADER_ICON,
   ERROR,
   FONT_HEADLINE,
@@ -443,7 +444,7 @@ export default function CrearEvento() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="hora" className={LABEL}>Hora del evento <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
+                    <label htmlFor="hora" className={LABEL}>Hora de inicio del evento <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
                     <div className={INPUT_WRAP}>
                       <span className={INPUT_ICON} aria-hidden="true">schedule</span>
                       <input
@@ -464,20 +465,23 @@ export default function CrearEvento() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="cliente_contacto" className={LABEL}>Contacto del cliente <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
+                  <label htmlFor="cliente_contacto" className={LABEL}>{MC.contacto.etiqueta} <span className="text-[#ba1a1a]" aria-hidden="true">*</span></label>
                   <div className={INPUT_WRAP}>
-                    <span className={INPUT_ICON} aria-hidden="true">person</span>
+                    <span className={INPUT_ICON} aria-hidden="true">contact_phone</span>
                     <input
                       id="cliente_contacto"
                       aria-required="true"
                       type="text"
+                      autoComplete="off"
+                      placeholder={MC.contacto.placeholder}
                       className={INPUT}
                       value={clienteContacto}
                       onChange={(e) => setClienteContacto(e.target.value)}
                       aria-invalid={Boolean(fieldErrors.cliente_contacto)}
-                      aria-describedby={fieldErrors.cliente_contacto ? 'error-cliente' : undefined}
+                      aria-describedby={`cliente-ayuda${fieldErrors.cliente_contacto ? ' error-cliente' : ''}`}
                     />
                   </div>
+                  <p id="cliente-ayuda" className="text-xs text-[#625d66]">{MC.contacto.ayuda}</p>
                   {fieldErrors.cliente_contacto && <p id="error-cliente" className={ERROR} role="alert">{fieldErrors.cliente_contacto[0]}</p>}
                 </div>
 
@@ -550,7 +554,7 @@ export default function CrearEvento() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 items-start gap-3">
                       <div className="flex flex-col gap-1">
                         <label htmlFor={`gestion-fecha-${gestion.id}`} className={LABEL}>Fecha objetivo</label>
                         <InputIcono
@@ -564,21 +568,14 @@ export default function CrearEvento() {
                           aria-describedby={gestion.error ? `gestion-error-${gestion.id}` : undefined}
                         />
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label htmlFor={`gestion-horas-${gestion.id}`} className={LABEL}>Horas estimadas</label>
-                        <InputIcono
-                          icon="schedule"
-                          id={`gestion-horas-${gestion.id}`}
-                          type="number"
-                          min="0.5"
-                          step="0.5"
-                          value={gestion.horas_estimadas}
-                          disabled={gestion.status === 'saved' || gestion.status === 'saving'}
-                          onChange={(e) => actualizarGestion(gestion.id, 'horas_estimadas', e.target.value)}
-                          aria-invalid={gestion.errorField === 'horas'}
-                          aria-describedby={gestion.error ? `gestion-error-${gestion.id}` : undefined}
-                        />
-                      </div>
+                      <CampoHoras
+                        id={`gestion-horas-${gestion.id}`}
+                        value={gestion.horas_estimadas}
+                        disabled={gestion.status === 'saved' || gestion.status === 'saving'}
+                        onChange={(e) => actualizarGestion(gestion.id, 'horas_estimadas', e.target.value)}
+                        aria-invalid={gestion.errorField === 'horas'}
+                        describedBy={gestion.error ? `gestion-error-${gestion.id}` : undefined}
+                      />
                     </div>
 
                     {avisos[gestion.id] && (
