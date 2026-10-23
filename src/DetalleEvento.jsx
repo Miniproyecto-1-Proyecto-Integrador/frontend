@@ -1489,7 +1489,7 @@ function SubtareaCard({ eventoId, subtarea, onGuardada, onEliminada, onFeedback 
             aria-describedby={`sub-fecha-ayuda-${subtarea.id}${errorField === 'fecha' ? ` sub-fecha-error-${subtarea.id}` : ''}`}
           />
           <p id={`sub-fecha-ayuda-${subtarea.id}`} className="text-xs text-[#625d66]">
-            ¿Solo quieres moverla de día? Cancela y usa «Reprogramar».
+            ¿Solo quieres moverla de día? Puedes usar la opción «Reprogramar».
           </p>
           {errorField === 'fecha' && (
             <p id={`sub-fecha-error-${subtarea.id}`} className={ERROR} role="alert">
